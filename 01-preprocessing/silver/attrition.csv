@@ -1,0 +1,8 @@
+step,posts,reason
+bronze,3786,raw dump
+live posts,3223,selftext not [removed]/[deleted]/empty
+not auto-removed,3205,no AutoModerator removal notice
+template present,2692,Problem/Goal and Context both non-empty
+deduplicated,2660,earliest copy of identical Problem/Goal + Context kept
+has eligible reply,2214,≥ 1 human top-level reply not by OP
+substantive top reply,1881,top reply ≥ 10 words

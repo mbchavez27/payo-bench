@@ -14,6 +14,6 @@ Frozen, task-ready benchmark artifacts. Results in the paper are computed from t
 - **Composition:** number of instances per task and split
 - **Label schema:** see `emotion-recognition/label-schema.json`
 - **Provenance:** every row keeps its Reddit `id` / `comment_id` back to bronze
-- **PII:** no usernames; `author_id` is a salted hash
+- **PII:** no author information; emails, URLs, phone numbers, handles and reviewed person names are replaced with placeholders (`[EMAIL]`, `[URL]`, `[PHONE]`, `[HANDLE]`, `u/[USER]`, `[NAME]`)
 - **Intended use:**
 - **License:**

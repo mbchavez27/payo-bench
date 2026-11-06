@@ -7,7 +7,7 @@ The repo reads top to bottom in pipeline order. Each medallion layer sits inside
 
 ```
 00-data/bronze/            Raw r/adviceph dump (immutable)
-01-preprocessing/silver/   Cleaned, PII-scrubbed tables
+01-preprocessing/silver/   Template posts paired with their top-voted reply
 02-llm/gold/               Frozen benchmark artifacts + Gemma / SEA-LION outputs
 03-evaluation/             Metrics, statistics, figures
 ```

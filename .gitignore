@@ -225,3 +225,5 @@ __marimo__/
 02-llm/gold/**/*.jsonl
 !02-llm/gold/**/label-schema.json
 .env
+# PII working files (contain real names)
+01-preprocessing/pii/

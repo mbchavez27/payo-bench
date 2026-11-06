@@ -1,0 +1,22 @@
+{
+  "layer": "silver",
+  "generated_at": "2026-11-06T11:15:48+00:00",
+  "generated_by": "01-preprocessing/01-preprocessing.ipynb",
+  "git_commit": "7b9e7e3c99ffba5638ba41d57aca7dc5f02f220c",
+  "ner_model": {
+    "repo": "ljvmiranda921/tl_calamancy_md",
+    "revision": "4960655b2d63fd9f306d60d554a95d7bfa5dd25d"
+  },
+  "inputs": {
+    "00-data/bronze/reddit-adviceph_2026-11-06/posts.jsonl": "adaf8a60f97a8510324d930b025645cd15dfb48cebcb24493dbfc9d279bc9979",
+    "00-data/bronze/reddit-adviceph_2026-11-06/comments.jsonl": "48112bb955717125af2a901a08ac87c0300cabdb7fa3553ca588585c1d3d2270",
+    "01-preprocessing/pii/name_review.csv": "06389de8aa828b4b756603e6afc2e1a91be4f097841b3c212c120ae52fcdd864"
+  },
+  "files": {
+    "advice_pairs.parquet": {
+      "sha256": "2d9c5cb1fad4ed73c9bc00fd20f2f671bb4be462101290507d2648ea144d0b86",
+      "rows": 1881,
+      "bytes": 2145173
+    }
+  }
+}
