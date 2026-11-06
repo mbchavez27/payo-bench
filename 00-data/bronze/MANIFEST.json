@@ -1,0 +1,17 @@
+{
+  "layer": "bronze",
+  "source": "Reddit r/adviceph",
+  "collected_at": "2026-11-06",
+  "files": {
+    "reddit-adviceph_2026-11-06/comments.jsonl": {
+      "sha256": "48112bb955717125af2a901a08ac87c0300cabdb7fa3553ca588585c1d3d2270",
+      "rows": 62992,
+      "bytes": 44846257
+    },
+    "reddit-adviceph_2026-11-06/posts.jsonl": {
+      "sha256": "adaf8a60f97a8510324d930b025645cd15dfb48cebcb24493dbfc9d279bc9979",
+      "rows": 3786,
+      "bytes": 6148888
+    }
+  }
+}

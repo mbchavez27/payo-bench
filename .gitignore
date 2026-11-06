@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Data — tracked via MANIFEST.json, not git
+00-data/bronze/**/*.jsonl
+01-preprocessing/silver/**/*.parquet
+02-llm/gold/**/*.jsonl
+!02-llm/gold/**/label-schema.json
+.env
