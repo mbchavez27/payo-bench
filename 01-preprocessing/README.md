@@ -10,7 +10,7 @@ The first run takes about 10–15 minutes because of name detection. Later runs 
 
 ## Output: `silver/advice_pairs.parquet`
 
-One row per r/adviceph post, paired with its top-voted human reply.
+One row per r/adviceph post, paired with its top-voted human reply. The text columns follow the post template that r/adviceph requires (Problem/Goal, Context, and optional Previous Attempts), so each post is split on those headers.
 
 | Column              | Type           | Source / notes                                        |
 | ------------------- | -------------- | ----------------------------------------------------- |
