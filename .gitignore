@@ -227,3 +227,6 @@ __marimo__/
 .env
 # PII working files (contain real names)
 01-preprocessing/pii/
+
+# macOS
+.DS_Store
