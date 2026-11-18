@@ -1,0 +1,175 @@
+{
+  "version": "v1-draft",
+  "status": "draft: definitions and sources not yet verified against the RRL; freeze before the pilot annotation",
+  "codebook": "02-llm/codebook/codebook.md",
+  "reply_language": "Taglish (natural Filipino-English code-switching, the way Filipinos write to each other online)",
+  "emotions": [
+    {
+      "id": "hiya",
+      "name": "Hiya",
+      "type": "culture_bound",
+      "definition": "Shame or social embarrassment at being seen by others as improper, a burden, or out of place, which often stops the person from asking, refusing, or speaking up."
+    },
+    {
+      "id": "tampo",
+      "name": "Tampo",
+      "type": "culture_bound",
+      "definition": "Hurt, sulking withdrawal toward someone close who did not give expected care or attention, usually hoping to be noticed and won back (nilalambing)."
+    },
+    {
+      "id": "sama_ng_loob",
+      "name": "Sama ng loob",
+      "type": "culture_bound",
+      "definition": "Deep, lingering hurt and resentment toward someone close, built up from repeated or serious wrongs and often left unspoken."
+    },
+    {
+      "id": "pikon",
+      "name": "Pikon",
+      "type": "culture_bound",
+      "definition": "Being provoked and losing composure over teasing, jokes, or small slights, and feeling bad or judged for having reacted."
+    },
+    {
+      "id": "utang_na_loob_guilt",
+      "name": "Utang-na-loob guilt",
+      "type": "culture_bound",
+      "definition": "Guilt or pressure from a debt of gratitude: feeling unable to refuse, or obliged to repay, someone (often family) who helped or raised them."
+    },
+    {
+      "id": "pakikisama_strain",
+      "name": "Pakikisama strain",
+      "type": "culture_bound",
+      "definition": "Strain from going along with a group or person to keep the peace, against one's own wishes, values, or limits."
+    },
+    {
+      "id": "worry",
+      "name": "Worry",
+      "type": "shared",
+      "definition": "Anxious, repeated thinking about what might go wrong in an uncertain situation."
+    },
+    {
+      "id": "sadness",
+      "name": "Sadness",
+      "type": "shared",
+      "definition": "Feeling down, hurt, or grieving after a loss, rejection, or disappointment."
+    },
+    {
+      "id": "anger",
+      "name": "Anger",
+      "type": "shared",
+      "definition": "Open frustration or rage at being wronged, blocked, or treated unfairly."
+    },
+    {
+      "id": "fear",
+      "name": "Fear",
+      "type": "shared",
+      "definition": "Feeling unsafe or afraid of a specific, present threat to oneself or others."
+    },
+    {
+      "id": "burnout",
+      "name": "Burnout",
+      "type": "shared",
+      "definition": "Emotional and physical exhaustion from prolonged demands, with loss of motivation or feeling numb."
+    },
+    {
+      "id": "jealousy",
+      "name": "Jealousy",
+      "type": "shared",
+      "definition": "Distress at a threat to a relationship from a rival (selos), or at someone having what one lacks (inggit)."
+    },
+    {
+      "id": "none_practical",
+      "name": "None / practical",
+      "type": "none",
+      "definition": "No clear emotion is expressed; the post is mainly a practical, procedural, or informational request."
+    }
+  ],
+  "cultural_concepts": [
+    {
+      "id": "utang_na_loob",
+      "name": "Utang na loob",
+      "definition": "A lasting debt of gratitude to someone who helped you, expected to be repaid through loyalty or help."
+    },
+    {
+      "id": "hiya",
+      "name": "Hiya (as a social norm)",
+      "definition": "The norm of avoiding shame and keeping face, including worry about what other people will say."
+    },
+    {
+      "id": "pakikisama",
+      "name": "Pakikisama",
+      "definition": "Getting along with the group and avoiding open conflict to keep relationships smooth."
+    },
+    {
+      "id": "amor_propio",
+      "name": "Amor propio",
+      "definition": "Personal pride and self-esteem that is easily wounded by criticism or loss of face."
+    },
+    {
+      "id": "family_obligation",
+      "name": "Family obligation",
+      "definition": "Duty to support or prioritize the family, such as being the breadwinner or panganay, sending money, or caring for parents."
+    },
+    {
+      "id": "respect_for_elders",
+      "name": "Respect for elders",
+      "definition": "Deference to parents and older relatives, where disagreeing openly is seen as disrespectful (walang galang)."
+    },
+    {
+      "id": "bahala_na",
+      "name": "Bahala na",
+      "definition": "Facing an uncertain situation by leaving the outcome to fate or God and pushing ahead."
+    },
+    {
+      "id": "none",
+      "name": "None",
+      "definition": "No specific Filipino cultural concept shapes the situation."
+    }
+  ],
+  "expression": [
+    {
+      "id": "explicit",
+      "definition": "The poster names the emotion or uses a close synonym (e.g. nahihiya ako, nagtatampo, takot ako)."
+    },
+    {
+      "id": "implicit",
+      "definition": "The emotion is only inferable from the situation, behavior, or tone."
+    }
+  ],
+  "domain": [
+    {"id": "family", "definition": "Parents, siblings, in-laws, relatives."},
+    {"id": "romantic", "definition": "Partners, exes, dating, marriage."},
+    {"id": "friendship", "definition": "Friends, barkada, roommates, neighbors."},
+    {"id": "work_school", "definition": "Jobs, employers, coworkers, studies, exams, career."},
+    {"id": "money", "definition": "Debt, loans, budgeting, purchases, where money is the main issue."},
+    {"id": "other", "definition": "Health, legal, self-improvement, or anything else."}
+  ],
+  "need_type": [
+    {"id": "emotional", "definition": "The poster mainly wants comfort, validation, or someone to listen."},
+    {"id": "practical", "definition": "The poster mainly wants concrete steps, information, or a decision."},
+    {"id": "both", "definition": "The poster clearly asks for both."}
+  ],
+  "exclusion_reasons": [
+    {"id": "self_harm_crisis", "definition": "Suicidal thoughts, self-harm, or an active crisis needing emergency help."},
+    {"id": "minor_or_abuse", "definition": "The poster or a central person is a minor in a sensitive situation, or there is physical, sexual, or domestic abuse."},
+    {"id": "sexual_content", "definition": "Explicit sexual content or questions centered on sex acts."},
+    {"id": "doxxing_prone", "definition": "Details that could identify real people even after masking (named workplace, small town plus unique events, public figures)."},
+    {"id": "bot_or_spam", "definition": "Generated, promotional, or spam content."}
+  ],
+  "strategies": [
+    {
+      "id": "autonomy",
+      "name": "Autonomy-oriented",
+      "definition": "Puts the poster's independence, needs, or limits first: set boundaries, say no, cut ties, leave, prioritize yourself."
+    },
+    {
+      "id": "relational",
+      "name": "Relational-obligation-oriented",
+      "definition": "Works within relationships and duties: keep harmony, involve family or an intermediary, approach indirectly, honor or repay obligations."
+    },
+    {
+      "id": "neutral_practical",
+      "name": "Neutral / practical",
+      "definition": "Neither: procedural, product, legal, financial, or informational advice, or support with no recommended action."
+    }
+  ]
+}
