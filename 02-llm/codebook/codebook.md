@@ -6,6 +6,19 @@ The one-line definitions and all label ids live in [`../gold/emotion-recognition
 
 ---
 
+## 0. Pre-screen (before sampling)
+
+Before the ~300 posts are sampled, one author does a quick pass over the whole pool (~800–1,000 posts, about 30 seconds per post) using [`prescreen-template.csv`](prescreen-template.csv):
+
+| Field            | Values                                                             |
+| ---------------- | ------------------------------------------------------------------ |
+| `exclude_flag`   | `yes` / `no`, using the criteria in §2                             |
+| `exclude_reason` | one id from `exclusion_reasons`, or empty                          |
+| `concept_likely` | `yes` / `no`: does a Filipino cultural concept (§5) seem to shape the situation? |
+| `domain_guess`   | one domain id (§7)                                                 |
+
+No LLM is used. The stratified sample (by `domain_guess` and `concept_likely`, with a low-culture control group) is drawn in code (`03-evaluation/00-sampling.ipynb`). The pre-screen is a quick guess: the full annotation below still applies the exclusion screen again and assigns the final labels. Its selection bias is measured in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md) §2.
+
 ## 1. What you label
 
 For each post (Problem/Goal + Context + Previous Attempts), fill one row of [`annotation-template.csv`](annotation-template.csv):
@@ -163,19 +176,13 @@ This refers to the label you chose. If the poster writes "naiinis ako" but you l
 
 1. **Pilot (20 posts).** All annotators label the same 20 posts independently, then discuss every disagreement. Revise this codebook and log the changes in §10. Pilot posts are not part of the final set.
 2. **Main pass.** Each post gets one annotator. **At least 25%** (≈75 of 300) are double-annotated, chosen at random (`SEED` logged) and not revealed to annotators.
-3. **Agreement.** Cohen's κ per field (`primary_emotion`, `cultural_concept`, `expression`), plus a per-label one-vs-rest κ for each emotion. κ below 0.4 on a label means that label is revised or merged.
+3. **Agreement.** Computed on the double-annotated subset. The statistics and the κ gate for revising or merging a label are in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md) (§2, §9 R1).
 4. **Adjudication.** A third team member resolves the double-annotated disagreements, and the adjudicated label is final. These final labels are also the **gold emotion** used in the P-Oracle condition.
 5. **Blindness.** Labeling is finished and frozen before any model output is viewed.
 
-## 9. Merge rule
+## 9. Merging rare labels
 
-After the main pass, any emotion label with **fewer than ~15 posts** is merged into its nearest label. Proposed merges, decided before seeing model output:
-- `pikon` → `anger`
-- `tampo` → `sama_ng_loob` (as "relational hurt")
-- `pakikisama_strain` → `hiya` or `burnout` (decided at adjudication)
-- `fear` → `worry`
-
-Report all merges, and the counts before and after merging.
+Rare labels are merged after adjudication and before any model output is viewed. The threshold and the proposed merges are a statistical decision, so they are kept in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md) §2. If a merge happens, update this codebook and the schema, and log it in §10.
 
 ## 10. Changelog
 

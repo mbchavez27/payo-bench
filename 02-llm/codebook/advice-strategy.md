@@ -2,7 +2,7 @@
 
 **Version:** v1-draft
 
-Each reply (Gemma, SEA-LION, or community) gets **one** code for its **dominant strategy**. The judge applies this codebook to every reply via [`../prompts/strategy-coding_v1.md`](../prompts/strategy-coding_v1.md). Two team members code a random subset of about 50 replies to check agreement (Cohen's κ).
+Each reply in the rated set (community, Gemma, SEA-LION; P0 and P-Oracle) gets **one** code for its **dominant strategy**. The **authors** code it in the `strategy` column of [`rating-template.csv`](rating-template.csv), at the same time as rating. No LLM is used. The ~25% of items that are double-rated are also double-coded, for the agreement check (Cohen's κ).
 
 Ids and one-line definitions come from `strategies` in [`label-schema.json`](../gold/emotion-recognition/label-schema.json).
 
@@ -35,4 +35,4 @@ Neither of the above.
 
 ## Drift measure
 
-Drift = (share of `autonomy` in LLM replies) − (share of `autonomy` in community replies). It is reported overall, by domain, and by cultural concept. Posts coded `neutral_practical` stay in the denominator. A version excluding them is reported as a sensitivity check.
+This file only defines the codes. How drift is computed and tested (shares, bootstrap CIs, McNemar, subgroup reporting) is in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md) §4.2, and the agreement check is in §9 R2.
