@@ -1,6 +1,6 @@
 # Analysis plan
 
-**Version:** v1-draft · **Freeze before any model output is viewed.** After freezing, any change is logged in §11 with its reason, and analyses not listed here are reported as exploratory.
+**Version:** v1 · **Frozen 2026-11-18, before any model output was viewed.** After freezing, any change is logged in §11 with its reason, and analyses not listed here are reported as exploratory.
 
 This file holds every **statistical** decision in the study. LLMs run only the two study tasks (`02-llm/prompts/`: emotion recognition and advice generation). Pre-screening, annotation, rating and strategy coding are done by the **authors** (`02-llm/codebook/`). Every number in the paper is computed here, in code, from frozen gold files.
 
@@ -13,7 +13,7 @@ Study framing: diagnostic and exploratory (modest N). Effect sizes with 95% CIs 
 | Symbol | Meaning |
 | --- | --- |
 | post *i* | one annotated, non-excluded post (target ≈ 300) |
-| rated set | `N_eval` posts drawn from the annotated set for author rating (default **80**; §1.1) |
+| rated set | `N_eval` = **80** posts drawn from the annotated set for author rating (decided 2026-11-18; §1.1) |
 | model *m* | `gemma` (google/gemma-3-4b-it) or `sealion` (aisingapore/Gemma-SEA-LION-v4-4B-VL) |
 | source *s* | `community`, `gemma`, `sealion` |
 | condition *c* | `P0`, `P-Oracle` (LLM replies only) |
@@ -55,10 +55,10 @@ Done after annotation and **before** looking at any model output.
 
 **CIs:** percentile bootstrap that resamples **posts** (B = 2,000, `SEED = 42`), applied to accuracy and macro-F1, overall and by `emotion_type` and `expression`.
 
-**Model (primary):** mixed-effects logistic regression
+**Model (primary):** logistic regression fitted with **GEE** (binomial, logit link, exchangeable correlation, clustered by post), which accounts for the same post being read by both models (see §12 for why GEE and not a mixed logistic model)
 
 ```
-correct ~ emotion_type * model + expression + (1 | post)
+correct ~ emotion_type * model + expression,   groups = post
 ```
 
 | Hypothesis | Estimate | Direction |
@@ -75,17 +75,19 @@ correct ~ emotion_type * model + expression + (1 | post)
 
 ### 4.1 Ratings (H2a)
 
-**Data:** author ratings on the rated set, P0 replies plus community replies (3 × `N_eval` items). One ordinal mixed model per dimension *d* ∈ {empathy, cultural_fit, helpfulness}:
+**Data:** author ratings on the rated set, P0 replies plus community replies (3 × `N_eval` items). One linear mixed model per dimension *d* ∈ {empathy, cultural_fit, helpfulness}, with rating in points (1–5), a random intercept for post, and rater as a fixed effect (only 3–4 authors; see §12):
 
 ```
-rating_d ~ source + (1 | post) + (1 | rater)
+rating_d ~ source + rater + (1 | post)
 ```
+
+All effects are **mean differences in rating points**, with 95% CIs, so they can be compared directly with the margins in §8.
 
 **Contrasts:** `community − gemma` and `community − sealion`.
 
 | Hypothesis | Test |
 | --- | --- |
-| Community higher on cultural fit and empathy | Directional contrast, OR > 1 for community |
+| Community higher on cultural fit and empathy | Directional contrast, community − LLM mean difference > 0 |
 | LLM comparable or higher on helpfulness | **Non-inferiority** of each LLM vs. community: the lower 95% CI bound of the LLM − community mean difference is above −Δ (Δ in §8) |
 
 **Sensitivity:** add `reply_length_words` (centered) as a covariate. Report whether any source effect changes direction or loses its CI. For community replies only, also report the correlation of `reply_score` (upvotes) with ratings, as the upvote confound.
@@ -104,7 +106,7 @@ drift_m = P(autonomy | m) − P(autonomy | community)
 
 - `neutral_practical` replies stay in the denominator. As a sensitivity check, drift is recomputed with them excluded.
 - **CI:** paired bootstrap over posts, since each post contributes a community reply and an LLM reply.
-- **Test:** McNemar on per-post autonomy (LLM vs. community), per model. H2b predicts drift > 0.
+- **Test:** McNemar on per-post autonomy (LLM vs. community), per model, using the primary rater's codes. H2b predicts drift > 0.
 - **By domain and by cultural concept:** report drift with bootstrap CIs, **descriptive only**, with no per-subgroup tests (to avoid multiplicity). Cells with fewer than 10 posts are flagged.
 
 ## 5. RQ3: model comparison on advice (H3b)
@@ -113,8 +115,8 @@ The same rating models as §4.1, P0 replies, with the `sealion − gemma` contra
 
 | Hypothesis | Test |
 | --- | --- |
-| SEA-LION higher on cultural fit | Directional contrast, OR > 1 |
-| SEA-LION higher on register and tone | Directional contrast, OR > 1, from `rating_register_tone ~ source + (1 | post) + (1 | rater)` |
+| SEA-LION higher on cultural fit | Directional contrast, sealion − gemma mean difference > 0 |
+| SEA-LION higher on register and tone | Directional contrast, sealion − gemma mean difference > 0, from `rating_register_tone ~ source + rater + (1 | post)` |
 | No advantage in safe escalation | **Equivalence (TOST)** on the rate of `missing` escalation among posts where raters marked escalation as needed, with margin ±Δ_esc (§8). If fewer than 20 such posts exist, report descriptively only and say so. |
 
 Harm-flag rates per source are reported descriptively, with Wilson CIs.
@@ -126,7 +128,7 @@ Harm-flag rates per source are reported descriptively, with Wilson CIs.
 P0 ratings on the rated set, with `correct` taken from the full Task A run, per dimension:
 
 ```
-rating_d ~ correct * emotion_type + model + domain + expression + post_length_words + (1 | post) + (1 | rater)
+rating_d ~ correct * emotion_type + model + domain + expression + post_length_words + rater + (1 | post)
 ```
 
 H4a predicts a positive `correct` effect.
@@ -138,7 +140,7 @@ H4a predicts a positive `correct` effect.
 Per rated post and model, Δ = mean rating(P-Oracle) − mean rating(P0).
 
 - **Paired test:** Wilcoxon signed-rank on Δ, per model and per `emotion_type`, with rank-biserial r.
-- **Model:** `rating_d ~ condition * emotion_type * model + (1 | post) + (1 | rater)`. H4b predicts the `condition × emotion_type` interaction to be positive for `culture_bound`.
+- **Model:** `rating_d ~ condition * emotion_type * model + rater + (1 | post)`. H4b predicts the `condition × emotion_type` interaction to be positive for `culture_bound`.
 
 **Interpretation rule (pre-specified):**
 
@@ -154,19 +156,19 @@ Prompt-length confound: P-Oracle prompts are longer. Report the mean prompt toke
 ## 7. If the reader survey runs (optional)
 
 The survey may be dropped for time. If it runs, on an 80-post subset of the rated set with P0 replies plus community:
-- Fit `rating_d ~ source + (1 | post) + (1 | respondent)` for empathy, cultural fit and helpfulness, with the same contrasts as §4.1. Report them next to the author results.
+- Fit `rating_d ~ source + (1 | post) + (1 | respondent)` (linear mixed model; respondents are many, so they stay random, fitted as crossed variance components in `statsmodels`) for empathy, cultural fit and helpfulness, with the same contrasts as §4.1. Report them next to the author results.
 - **Author–reader agreement:** per reply, the Spearman ρ between the author mean and the reader mean per dimension (bootstrap CI). Also agreement on best-fit choices (% agreement and Cohen's κ).
 - Survey reliability: Krippendorff's α (ordinal) per dimension.
 
 If it does not run, report this as a construct limitation: the ratings come from the authors, not from lay Filipino readers.
 
-## 8. Pre-registered margins (fill in before freezing)
+## 8. Pre-registered margins (fixed 2026-11-18)
 
-| Symbol | Used in | Proposed value | Rationale |
+| Symbol | Used in | Value | Rationale |
 | --- | --- | --- | --- |
-| Δ | H2a non-inferiority (helpfulness) | 0.5 points on the 1–5 scale | half a scale step |
-| Δ_esc | H3b safe-escalation equivalence | 10 percentage points | |
-| Δ_oracle | H4b "substantial" improvement | 0.5 points on the 1–5 scale | same as Δ |
+| Δ | H2a non-inferiority (helpfulness) | 0.5 points on the 1–5 scale | A difference smaller than half a rating step is treated as practically negligible. With 80 posts the 95% CI half-width is about ±0.2 points, so this margin is testable. |
+| Δ_esc | H3b safe-escalation equivalence | 10 percentage points | A gap under 10 points in missed escalations is treated as no practical difference. Likely unused: if fewer than 20 posts need escalation, H3b escalation is descriptive (§5). |
+| Δ_oracle | H4b "substantial" improvement | 0.5 points on the 1–5 scale | Same reasoning as Δ. A smaller but real gain is read as "Oracle improves advice little" (response bottleneck), as intended by the interpretation table in §6.2. |
 
 ## 9. Reliability
 
@@ -196,6 +198,7 @@ Holm correction is applied **within each family**. Descriptive, subgroup and sen
 | Version | Date | Change |
 | --- | --- | --- |
 | v1-draft | 2026-11-18 | First draft. LLMs run only Task A and Task B; ratings, strategy codes and pre-screen are by the authors; the LLM judge is removed; the reader survey is optional. |
+| v1 | 2026-11-18 | Frozen. `N_eval` = 80; margins fixed (§8); Python-only tooling (§12): linear mixed models for ratings with rater as a fixed effect, GEE for the logistic model in §3. |
 
 ## Threats specific to author rating
 
@@ -203,11 +206,23 @@ Holm correction is applied **within each family**. Descriptive, subgroup and sen
 - **Authors are not lay readers.** This is the reason for keeping §7 if time allows.
 - **The rated set is smaller than the full run** (`N_eval` vs. ≈300), so H2–H4 have less power than RQ1. Report this alongside the effect sizes.
 
-## Open decision: tooling for ordinal mixed models
+## 12. Tooling (decided: Python only)
 
-Python has no mature ordinal model with random effects (`statsmodels` `OrderedModel` has none). Options:
-- **R `ordinal::clmm`**, called from a small R script (the standard tool; recommended);
-- **`bambi`** (Bayesian, cumulative family with random effects; adds PyMC);
-- treating ratings as continuous in `statsmodels` `MixedLM`, as a sensitivity check only.
+All analyses run in Python inside the project's `uv` environment. Dependencies to add when the notebooks are written: `statsmodels`, `scipy`, `scikit-learn`, `krippendorff`.
 
-Decide this before writing the notebooks. The logistic models (§3, §4.2) can use `statsmodels` or `pymer4`.
+| Analysis | Tool |
+| --- | --- |
+| Ratings (§4.1, §5, §6) | `statsmodels` `MixedLM`: linear mixed model, random intercept for post, rater as a fixed effect |
+| Recognition correctness (§3) | `statsmodels` `GEE`: binomial, exchangeable correlation, clustered by post |
+| McNemar, Wilcoxon, TOST, Spearman | `statsmodels` / `scipy` |
+| Bootstrap CIs | `numpy`, resampling posts, `SEED = 42` |
+| κ, α | `scikit-learn` (`cohen_kappa_score`), `krippendorff` |
+| Holm correction | `statsmodels` `multipletests(method="holm")` |
+
+**Why a linear and not an ordinal mixed model.** Python has no frequentist ordinal model with random effects. Treating 1–5 ratings as numbers keeps the margins (§8) in rating points and keeps p-values and the Holm correction as planned. This is common practice for rating-scale outcomes, and it is reported as a limitation. If time allows, an ordinal sensitivity check can be added with `bambi` (Bayesian cumulative model); it would be labeled as a sensitivity analysis.
+
+**Why rater is a fixed effect.** With only 3–4 authors rating, a rater variance component can't be estimated reliably. A fixed rater term still adjusts for raters who are harsher or more lenient overall.
+
+**Why GEE for recognition.** `statsmodels` has no frequentist mixed logistic model. GEE clustered by post gives odds ratios with cluster-robust standard errors and handles the same pairing (both models on one post). The ORs are population-averaged rather than per-post, and this is noted in the methods.
+
+**Methodology wording to update.** "Ordinal mixed models" becomes "linear mixed models (ratings treated as interval), with post as a random intercept and rater as a fixed effect". "Mixed-effects logistic regression (post as random effect)" becomes "logistic GEE clustered by post".
