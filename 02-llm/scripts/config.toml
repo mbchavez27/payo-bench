@@ -1,0 +1,52 @@
+# Run configuration for the two LLM tasks (emotion recognition, advice generation).
+# Changing anything here after the full run starts means a new run: log it in 02-llm/README.md.
+
+seed = 42
+
+[models.gemma]
+hf_id = "google/gemma-3-4b-it"
+hf_revision = "093f9f388b31de276ce2de164bdc2081324b9767"
+# Pilot only: GGUF build from ggml-org (llama.cpp maintainers), not gated. Repo revision at pinning time:
+# d0976223747697cb51e056d85c532013931fe52e
+ollama_tag = "hf.co/ggml-org/gemma-3-4b-it-GGUF:Q8_0"
+
+[models.sealion]
+hf_id = "aisingapore/Gemma-SEA-LION-v4-4B-VL"
+hf_revision = "b4fcc3f0f2217761ad217dff1755f3ab3f3a8d82"
+# Pilot only: official AI Singapore GGUF. Repo revision at pinning time:
+# 59f4fedcdc39816d22108b44036e02449e62e2ce
+ollama_tag = "hf.co/aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF:Q8_0"
+
+# Main run: greedy. temperature = 0 means greedy decoding in both backends.
+[decoding.main]
+temperature = 0.0
+top_p = 1.0
+
+[decoding.variance]
+temperature = 0.7
+top_p = 0.95
+seeds = [1, 2, 3]
+n_posts = 30          # first N posts of the run's post list
+
+[max_new_tokens]
+recognition = 64      # one short JSON object
+advice = 320          # ~150-word Taglish reply with headroom; truncation is logged
+
+[profiles.pilot]
+backend = "ollama"
+host = "http://localhost:11434"
+num_ctx = 8192
+posts = "02-llm/pilot/pilot_posts.csv"
+gold = "02-llm/pilot/pilot_annotations.csv"
+out_dir = "02-llm/pilot/outputs"
+batch_size = 1        # Ollama serves one request at a time here
+
+[profiles.full]
+backend = "vllm"
+precision = "auto"    # bf16 if VRAM >= 11 GB, else fp8 (weight-only); override with --precision
+max_model_len = 8192  # longest silver post is ~5.7k prompt tokens; KV for 8k fits on 8 GB with fp8 weights
+gpu_memory_utilization = 0.90
+posts = "02-llm/gold/sample_posts.csv"
+gold = "02-llm/gold/emotion-recognition/annotations_adjudicated.csv"
+out_dir = "02-llm/gold"
+batch_size = 64       # prompts per vLLM call; also the checkpoint size for resuming

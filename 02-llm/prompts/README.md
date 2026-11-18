@@ -9,7 +9,7 @@ One file per task per version (`<task>_v<N>.md`). A released version is never ed
 Each file has YAML front-matter (`task`, `version`, `placeholders`, `output_format`) followed by the prompt body. **Only the body is sent to the model.**
 
 - Placeholders are `{{name}}` and are filled by plain string replacement (not `str.format`, because the bodies contain JSON braces).
-- The whole body is sent as **one user turn with no system prompt**. Gemma 3 has no system role, and Gemma-SEA-LION-v4 uses the same chat template, so both models get the exact same string.
+- The whole body is sent as **one user turn with no system prompt** (Gemma 3 has no system role). Both models get the same user content; each backend wraps it in that model's **own chat template** (SEA-LION ships its own). The scripts save each template to `chat_templates/<model>.txt` and log its sha256.
 - `{{emotion_list}}` and `{{concept_list}}` are rendered from `../gold/emotion-recognition/label-schema.json` in schema order, one line per item: `- <id>: <definition>`.
 
 ## Shared placeholders

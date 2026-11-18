@@ -13,3 +13,18 @@ dependencies = [
     "requests>=2.34.2",
     "spacy>=3.8.3",
 ]
+
+[project.optional-dependencies]
+full = [
+    "bitsandbytes>=0.50.2 ; sys_platform == 'linux'",
+    "vllm>=0.34.0 ; sys_platform == 'linux'",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["02-llm/scripts"]
+testpaths = ["02-llm/scripts/tests"]

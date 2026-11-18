@@ -224,6 +224,10 @@ __marimo__/
 01-preprocessing/silver/**/*.parquet
 02-llm/gold/**/*.jsonl
 !02-llm/gold/**/label-schema.json
+# Pilot outputs and pilot labels stay local (post text / labels); pilot_posts.csv (ids only) is committed
+02-llm/pilot/**/*.jsonl
+02-llm/pilot/pilot_annotations.csv
+02-llm/pilot/outputs/
 .env
 # PII working files (contain real names)
 01-preprocessing/pii/
