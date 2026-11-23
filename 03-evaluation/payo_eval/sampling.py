@@ -104,7 +104,7 @@ def stratified_sample(prescreen: pd.DataFrame, n_draw: int, concept_share: float
 
 
 def assign(post_ids: Sequence[str], people: Sequence[str], double_share: float, seed: int,
-           avoid: Mapping[str, set[str]] | None = None) -> pd.DataFrame:
+           avoid: Mapping[str, set[str]] | None = None, not_on_doubles: set[str] | None = None) -> pd.DataFrame:
     """
     Give every post one person, and a random `double_share` of posts a second, different person.
 
@@ -117,13 +117,16 @@ def assign(post_ids: Sequence[str], people: Sequence[str], double_share: float, 
         double_share: Share of posts that get a second person (0 for none).
         seed: Random seed.
         avoid: post_id -> people to avoid for that post.
+        not_on_doubles: People never given a double-coded post (the fixed adjudicator, so they are
+            never one of a disagreeing pair). They still get single-coded posts.
 
     Returns:
         post_id, person, slot (1 = primary, 2 = second), conflict (avoid rule could not be met).
     """
     avoid = avoid or {}
-    if double_share > 0 and len(people) < 2:
-        raise SystemExit("Double coding needs at least two people in the roster.")
+    not_on_doubles = not_on_doubles or set()
+    if double_share > 0 and len(set(people) - not_on_doubles) < 2:
+        raise SystemExit("Double coding needs at least two people besides the adjudicator.")
     rng = np.random.default_rng(seed)
     posts = [post_ids[i] for i in rng.permutation(len(post_ids))]
     n_double = round(len(posts) * double_share)
@@ -134,7 +137,7 @@ def assign(post_ids: Sequence[str], people: Sequence[str], double_share: float, 
     for post in posts:
         taken: list[str] = []
         for slot in (1, 2) if post in doubles else (1,):
-            free = [p for p in people if p not in taken]
+            free = [p for p in people if p not in taken and not (post in doubles and p in not_on_doubles)]
             allowed = [p for p in free if p not in avoid.get(post, set())] or free
             person = min(allowed, key=lambda p: (load[p], tie_order[p]))
             load[person] += 1

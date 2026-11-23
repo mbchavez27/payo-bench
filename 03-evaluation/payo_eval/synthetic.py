@@ -197,10 +197,10 @@ def rate(key: pd.DataFrame, truth: pd.DataFrame, correct: dict, rater: str, rng:
 def synthetic_config(path: Path) -> None:
     """The real config with a fake roster and a decided pakikisama_strain merge."""
     text = (EVAL_DIR / "config.toml").read_text(encoding="utf-8")
-    text = re.sub(r'^annotators = \[\]', 'annotators = ["ann1", "ann2", "ann3"]', text, flags=re.M)
-    text = re.sub(r'^raters = \[\]', 'raters = ["ann1", "ann2", "ann3"]', text, flags=re.M)
-    text = re.sub(r'^adjudicator = ""', 'adjudicator = "adj"', text, flags=re.M)
-    text = re.sub(r'^screener = ""', 'screener = "scr"', text, flags=re.M)
+    text = re.sub(r'^annotators = .*$', 'annotators = ["ann1", "ann2", "ann3"]', text, flags=re.M)
+    text = re.sub(r'^raters = .*$', 'raters = ["ann1", "ann2", "ann3"]', text, flags=re.M)
+    text = re.sub(r'^adjudicator = .*$', 'adjudicator = "adj"', text, flags=re.M)
+    text = re.sub(r'^screener = .*$', 'screener = "scr"', text, flags=re.M)
     text = re.sub(r'^n = 900', 'n = 600', text, flags=re.M)
     text = re.sub(r'^pakikisama_strain = ""', 'pakikisama_strain = "hiya"', text, flags=re.M)
     text = text.replace("[merges]\n", '[merges]\nburnout = "worry"\njealousy = "anger"\nsama_ng_loob = "hiya"\n'

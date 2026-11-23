@@ -66,6 +66,15 @@ def test_assign_respects_avoid_when_possible():
     assert forced["conflict"].all()
 
 
+def test_fixed_adjudicator_never_on_double_posts():
+    posts = [f"p{i}" for i in range(100)]
+    plan = assign(posts, ["a", "b", "c", "adj"], 0.25, seed=4, not_on_doubles={"adj"})
+    doubles = set(plan.loc[plan["slot"] == 2, "post_id"])
+    assert not plan[plan["post_id"].isin(doubles) & (plan["person"] == "adj")].shape[0]
+    assert (plan["person"] == "adj").sum() > 0  # still annotates single-coded posts
+    assert (plan["slot"] == 2).sum() == 25
+
+
 def test_assign_needs_two_people_for_overlap():
     with pytest.raises(SystemExit):
         assign(["p1"], ["a"], 0.5, seed=0)

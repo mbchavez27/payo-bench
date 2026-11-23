@@ -158,7 +158,9 @@ def sample(force: bool = False) -> None:
     _write_csv(drawn, paths.sample)
 
     people = roster(cfg, "annotators")
-    plan = assign(drawn["post_id"].tolist(), people, s["double_share"], cfg["seed"])
+    adjudicator = cfg["roster"].get("adjudicator", "")
+    plan = assign(drawn["post_id"].tolist(), people, s["double_share"], cfg["seed"],
+                  not_on_doubles={adjudicator} if adjudicator else None)
     plan = plan.rename(columns={"person": "annotator"})
     _write_csv(plan[["post_id", "annotator", "slot"]], paths.assignment)
     for person in people:

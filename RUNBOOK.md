@@ -11,7 +11,7 @@ Shorthand: `wf` = `uv run python 03-evaluation/workflow.py`.
 | Who | Do | Check |
 | --- | --- | --- |
 | Team | Resolve every `TO-VERIFY` in `02-llm/codebook/codebook.md`, then set the codebook, `label-schema.json`, `rating-rubric.md` and `advice-strategy.md` to v1 | No `TO-VERIFY` left |
-| Team | Fill `[roster]` in `03-evaluation/config.toml`: `annotators`, `raters`, `adjudicator`, `screener` (short ids, e.g. `"ana"`) | `wf status` runs |
+| Team | Check `[roster]` in `03-evaluation/config.toml`. Set now: all five annotate and rate (`max`, `airon`, `jayhan`, `jerome`, `ethan`), `ethan` adjudicates, `max` pre-screens. Change it before `wf sample` if needed | `wf status` runs |
 | Anyone | `uv sync` | `uv run pytest` passes |
 
 ## 1. Pilot labels and pilot P-Oracle

@@ -177,7 +177,7 @@ This refers to the label you chose. If the poster writes "naiinis ako" but you l
 1. **Pilot (20 posts).** All annotators label the same 20 posts independently, then discuss every disagreement. Revise this codebook and log the changes in §10. Pilot posts are not part of the final set.
 2. **Main pass.** Each post gets one annotator. **At least 25%** (≈75 of 300) are double-annotated, chosen at random (`SEED` logged) and not revealed to annotators.
 3. **Agreement.** Computed on the double-annotated subset. The statistics and the κ gate for revising or merging a label are in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md) (§2, §9 R1).
-4. **Adjudication.** A third team member resolves the double-annotated disagreements, and the adjudicated label is final. These final labels are also the **gold emotion** used in the P-Oracle condition.
+4. **Adjudication.** A third team member resolves the double-annotated disagreements, and the adjudicated label is final. One fixed adjudicator (`config.toml [roster] adjudicator`) does all of them; the sampling step never gives them a double-annotated post, so they are never one of the pair. These final labels are also the **gold emotion** used in the P-Oracle condition.
 5. **Blindness.** Labeling is finished and frozen before any model output is viewed.
 
 ## 9. Merging rare labels

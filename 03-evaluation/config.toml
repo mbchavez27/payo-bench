@@ -6,11 +6,11 @@ seed = 42
 
 [roster]
 # Short ids for the team, used as sheet file names and in the `annotator` / `rater` columns.
-# Fill these in before running any sheet step, e.g. annotators = ["ana", "ben", "cara"].
-annotators = []
-raters = []          # usually the same people
-adjudicator = ""     # resolves double-annotation disagreements; should not be one of the pair it adjudicates
-screener = ""        # does the pre-screen (codebook §0)
+# First-name ids only: this file is in a public repo.
+annotators = ["max", "airon", "jayhan", "jerome", "ethan"]
+raters = ["max", "airon", "jayhan", "jerome", "ethan"]
+adjudicator = "ethan"  # fixed; never given a double-annotated post, so never one of a disagreeing pair
+screener = "max"       # does the pre-screen (codebook §0)
 
 [prescreen]
 n = 900              # seeded random draw from silver (pilot posts excluded); ~30 s per post
