@@ -48,7 +48,7 @@ Done after annotation and **before** looking at any model output.
 
 **Descriptives, per model:**
 - accuracy, macro-F1, and per-class precision, recall and F1 for the emotion label;
-- the same metrics for the cultural-concept label, as a secondary measure;
+- the same metrics for the cultural-concept label, as a secondary measure, using the schema's fixed `concept_aliases` (v1.1). Also report the share of concept outputs that needed an alias, per model, and the concept metrics with those outputs counted as invalid instead;
 - the invalid-output rate;
 - confusion matrices;
 - a majority-class baseline (always predict the most frequent gold label).
@@ -69,7 +69,7 @@ correct ~ emotion_type * model + expression,   groups = post
 
 **Paired check:** McNemar test of Gemma vs. SEA-LION correctness on the same posts. It is run overall and on the culture-bound subset (H3a), with the effect reported as the discordant-pair OR.
 
-**Calibration (descriptive):** a reliability diagram and expected calibration error (ECE) of `confidence / 100`, per model.
+**Calibration (descriptive):** a reliability diagram and expected calibration error (ECE) of `confidence / 100`, per model. In the pilot, confidence took only 2–3 values (85–95), so this is reported as descriptive only, with the confidence distribution, and is not interpreted as a calibration finding (§11, v1.1).
 
 ## 4. RQ2: advice quality vs. community (H2a, H2b)
 
@@ -84,6 +84,8 @@ rating_d ~ source + rater + (1 | post)
 All effects are **mean differences in rating points**, with 95% CIs, so they can be compared directly with the margins in §8.
 
 **Contrasts:** `community − gemma` and `community − sealion`.
+
+**Length sensitivity (v1.1):** community top replies are much shorter than LLM replies (pilot medians about 37 vs 150 words). Length and source are therefore nearly collinear, so length is not added to the primary model. Instead, report `reply_words` by source, and refit each model with `log(reply_words)` added, as a sensitivity analysis. If a community − LLM contrast changes sign or its CI crosses zero, report the H2a result as length-dependent.
 
 | Hypothesis | Test |
 | --- | --- |
@@ -199,6 +201,7 @@ Holm correction is applied **within each family**. Descriptive, subgroup and sen
 | --- | --- | --- |
 | v1-draft | 2026-11-18 | First draft. LLMs run only Task A and Task B; ratings, strategy codes and pre-screen are by the authors; the LLM judge is removed; the reader survey is optional. |
 | v1 | 2026-11-18 | Frozen. `N_eval` = 80; margins fixed (§8); Python-only tooling (§12): linear mixed models for ratings with rater as a fixed effect, GEE for the logistic model in §3. |
+| v1.1 | 2026-11-23 | After the 30-post pilot (health checks only, no accuracy viewed): calibration marked descriptive only (§3), because confidence was near-constant; length sensitivity analysis added for H2a (§4.1), because community replies were about 4× shorter. Concept metrics use the fixed alias map, and the strict version is reported alongside (§3), because the models put emotion ids (`pakikisama_strain`, `utang_na_loob_guilt`) in the concept field even under prompt v2. Run changes outside this file: Task A prompt v2, the `concept_aliases` parsing rule in the schema, and `max_new_tokens.advice` raised from 320 to 400. |
 
 ## Threats specific to author rating
 
