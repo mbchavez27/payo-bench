@@ -1,0 +1,49 @@
+# Workflow and analysis settings (03-evaluation/workflow.py and the notebooks).
+# Statistical choices live in analysis-plan.md; this file only holds the numbers and names the code needs.
+# Changing a value after the step that uses it has run means rerunning that step: note it in the RUNBOOK log.
+
+seed = 42
+
+[roster]
+# Short ids for the team, used as sheet file names and in the `annotator` / `rater` columns.
+# Fill these in before running any sheet step, e.g. annotators = ["ana", "ben", "cara"].
+annotators = []
+raters = []          # usually the same people
+adjudicator = ""     # resolves double-annotation disagreements; should not be one of the pair it adjudicates
+screener = ""        # does the pre-screen (codebook §0)
+
+[prescreen]
+n = 900              # seeded random draw from silver (pilot posts excluded); ~30 s per post
+
+[sample]
+n_target = 300             # posts wanted after annotation exclusions
+expected_retention = 0.90  # share kept at annotation; draw = ceil(n_target / expected_retention)
+concept_share = 0.67       # share drawn from concept_likely = yes; the rest is the low-culture control
+domain_floor = 10          # minimum posts per domain within each arm (if available)
+double_share = 0.25        # share of sampled posts labeled by two annotators (codebook §8)
+
+[labels]
+min_label = 15       # analysis plan §2: labels with fewer adjudicated posts are merged
+kappa_gate = 0.40    # analysis plan §2: one-vs-rest κ below this needs revision or a merge
+
+# Proposed merges (analysis plan §2). Applied only to labels that end up below min_label, and only at
+# scoring time: prompts, schema and the adjudicated sheet keep the original label.
+# pakikisama_strain has no default: set "hiya" or "burnout" at adjudication if it is needed.
+[merges]
+pikon = "anger"
+tampo = "sama_ng_loob"
+fear = "worry"
+pakikisama_strain = ""
+
+[rating]
+n_eval = 80          # analysis plan §1.1
+double_share = 0.25  # share of rated posts rated by a second author
+
+[analysis]
+bootstrap_b = 2000
+margin_points = 0.5       # Δ and Δ_oracle (§8)
+margin_escalation = 0.10  # Δ_esc (§8)
+alpha_tentative = 0.67    # R3: below this, a dimension is reported as tentative
+min_escalation_posts = 20
+min_within_post = 15
+min_cell = 10
