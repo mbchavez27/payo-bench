@@ -179,7 +179,7 @@ If it does not run, report this as a construct limitation: the ratings come from
 | R1 | Annotation (≥ 25% double-annotated) | Cohen's κ per field (`primary_emotion`, `cultural_concept`, `expression`), plus one-vs-rest κ per emotion label; the gate is in §2, step 2 |
 | R2 | Strategy coding (double-coded items) | Cohen's κ between the two authors |
 | R3 | Author ratings (≈ 25% double-rated) | Krippendorff's α (ordinal) per dimension; percent agreement on safe escalation and best fit |
-| R4 | Generation variance (sampled runs on a subset) | Agreement of Task A labels across samples, and the share of advice replies whose strategy code changes; compare with the size of the effects above |
+| R4 | Generation variance (sampled runs on a subset) | Agreement of Task A labels across samples and with the greedy run; for advice, the spread of reply length across samples (the strategy-change share was dropped in v1.2); compare with the size of the effects above |
 
 If R3 α is below 0.67 for a dimension, results on that dimension are reported as tentative.
 
@@ -202,11 +202,13 @@ Holm correction is applied **within each family**. Descriptive, subgroup and sen
 | v1-draft | 2026-11-18 | First draft. LLMs run only Task A and Task B; ratings, strategy codes and pre-screen are by the authors; the LLM judge is removed; the reader survey is optional. |
 | v1 | 2026-11-18 | Frozen. `N_eval` = 80; margins fixed (§8); Python-only tooling (§12): linear mixed models for ratings with rater as a fixed effect, GEE for the logistic model in §3. |
 | v1.1 | 2026-11-23 | After the 30-post pilot (health checks only, no accuracy viewed): calibration marked descriptive only (§3), because confidence was near-constant; length sensitivity analysis added for H2a (§4.1), because community replies were about 4× shorter. Concept metrics use the fixed alias map, and the strict version is reported alongside (§3), because the models put emotion ids (`pakikisama_strain`, `utang_na_loob_guilt`) in the concept field even under prompt v2. Run changes outside this file: Task A prompt v2, the `concept_aliases` parsing rule in the schema, and `max_new_tokens.advice` raised from 320 to 400. |
+| v1.2 | 2026-11-23 | Implementation decisions made while writing the code (`03-evaluation/payo_eval/`), before annotation: (1) merges (§2) are applied at **scoring time** to gold and predictions alike, from `config.toml [merges]`; prompts, schema and the adjudicated labels (the P-Oracle input) keep the original label. (2) R4's advice strategy-change share is dropped (it needed about 360 extra hand-coded replies); R4 keeps Task A stability and adds reply-length spread. (3) With more than two annotators or raters, κ pools first vs. second coder across pairs. (4) The rated set is allocated proportionally across `emotion_type` × `domain` cells (largest remainder). (5) Whole posts go to raters, so a double-rated post is double-rated on all 5 items; raters avoid posts they annotated or adjudicated where the roster allows, and conflicts are recorded. (6) The reader survey (§7) does not run; the authors' ratings are reported with the construct limitation stated in §7. |
 
 ## Threats specific to author rating
 
 - **Raters know the label set and set the gold emotions.** Mitigations: blinded `item_id`, shuffled order, P0 and Oracle mixed together, raters skip posts they annotated where possible, and R3 α is reported.
-- **Authors are not lay readers.** This is the reason for keeping §7 if time allows.
+- **Authors are not lay readers.** The survey (§7) does not run (v1.2), so this is reported as a construct limitation.
+- **Best-fit candidates reveal the condition split.** The best-fit sheet lists only the three P0-level replies, so a rater can tell that the other two replies of a post were P-Oracle LLM replies. The ratings are made first, on the rating sheet, where all five replies are mixed.
 - **The rated set is smaller than the full run** (`N_eval` vs. ≈300), so H2–H4 have less power than RQ1. Report this alongside the effect sizes.
 
 ## 12. Tooling (decided: Python only)

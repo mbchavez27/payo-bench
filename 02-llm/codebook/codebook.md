@@ -8,7 +8,7 @@ The one-line definitions and all label ids live in [`../gold/emotion-recognition
 
 ## 0. Pre-screen (before sampling)
 
-Before the ~300 posts are sampled, one author does a quick pass over the whole pool (~800–1,000 posts, about 30 seconds per post) using [`prescreen-template.csv`](prescreen-template.csv):
+Before the ~300 posts are sampled, one author does a quick pass over a seeded random pool of silver posts (900 by default, `03-evaluation/config.toml [prescreen] n`; pilot posts excluded; about 30 seconds per post) in the sheet made by `workflow.py prescreen-sheet` (columns as in [`prescreen-template.csv`](prescreen-template.csv)):
 
 | Field            | Values                                                             |
 | ---------------- | ------------------------------------------------------------------ |
@@ -182,7 +182,7 @@ This refers to the label you chose. If the poster writes "naiinis ako" but you l
 
 ## 9. Merging rare labels
 
-Rare labels are merged after adjudication and before any model output is viewed. The threshold and the proposed merges are a statistical decision, so they are kept in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md) §2. If a merge happens, update this codebook and the schema, and log it in §10.
+Rare labels are merged after adjudication and before any model output is viewed. The threshold and the proposed merges are a statistical decision, so they are kept in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md) §2. Merges are recorded in `03-evaluation/config.toml [merges]` and applied at scoring time (analysis plan v1.2): the schema, the prompts and the adjudicated labels keep the original label. `workflow.py finalize-labels` stops if a rare label has no merge target. Log any merge in §10.
 
 ## 10. Changelog
 

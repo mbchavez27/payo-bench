@@ -35,7 +35,7 @@ uv run python 02-llm/scripts/run.py --profile pilot --check
 uv run python 02-llm/scripts/run.py --profile pilot --task recognition,advice-p0 --model both
 ```
 
-For the pilot **P-Oracle** run, first label the 30 posts in `02-llm/pilot/pilot_annotations.csv` using `../codebook/codebook.md`. Then run:
+For the pilot **P-Oracle** run, first label the pilot posts. Use `03-evaluation/workflow.py pilot-sheets`, then `pilot-merge`, then `pilot-adjudicate` (RUNBOOK §1), which writes `02-llm/pilot/pilot_annotations.csv`. Then run:
 
 ```bash
 uv run python 02-llm/scripts/run.py --profile pilot --task advice-oracle --model both
