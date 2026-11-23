@@ -34,7 +34,7 @@ CONFIG_PATH = Path(__file__).resolve().parent / "config.toml"
 PROMPT_DIR = ROOT / "02-llm" / "prompts"
 TASKS = ("recognition", "advice-p0", "advice-oracle")
 PROMPT_FILES = {
-    "recognition": "emotion-recognition_v1.md",
+    "recognition": "emotion-recognition_v2.md",
     "advice-p0": "advice-p0_v1.md",
     "advice-oracle": "advice-oracle_v1.md",
 }
@@ -168,10 +168,10 @@ def to_record(job: Job, gen: Generation, backend: Backend, model: str, decoding:
         "created_at": now_iso(),
     }
     if job.task == "recognition":
-        parsed = parse_recognition(gen.text, schema.emotion_ids, schema.concept_ids)
+        parsed = parse_recognition(gen.text, schema.emotion_ids, schema.concept_ids, schema.concept_aliases)
         record |= {"emotion": parsed.emotion, "cultural_concept": parsed.cultural_concept,
                    "confidence": parsed.confidence, "valid": parsed.valid,
-                   "invalid_reason": parsed.invalid_reason}
+                   "invalid_reason": parsed.invalid_reason, "concept_alias": parsed.concept_alias}
     else:
         record["reply_words"] = len(gen.text.split())
     return record

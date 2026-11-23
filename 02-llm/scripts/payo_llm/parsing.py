@@ -1,6 +1,7 @@
 """Parse Task A (emotion recognition) outputs, following the prompt's parsing rule."""
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 
@@ -11,7 +12,8 @@ class Recognition:
 
     `valid` refers to the emotion label only, because that is what RQ1 scores: an invalid emotion
     counts as incorrect. Concept and confidence problems are listed in `invalid_reason` and set
-    their own field to None, without making the emotion invalid.
+    their own field to None, without making the emotion invalid. `concept_alias` is True when the
+    concept came from the schema's fixed alias map rather than an exact concept id.
     """
 
     emotion: str | None
@@ -19,6 +21,7 @@ class Recognition:
     confidence: int | None
     valid: bool
     invalid_reason: str | None
+    concept_alias: bool = False
 
 
 def first_json_object(text: str) -> dict | None:
@@ -71,15 +74,18 @@ def _confidence(value: object) -> int | None:
     return None
 
 
-def parse_recognition(text: str, emotion_ids: frozenset[str], concept_ids: frozenset[str]) -> Recognition:
+def parse_recognition(text: str, emotion_ids: frozenset[str], concept_ids: frozenset[str],
+                      concept_aliases: Mapping[str, str] | None = None) -> Recognition:
     """
     Parse a Task A output. Labels must match a schema id exactly after lowercasing and trimming;
-    nothing is mapped to a nearest label.
+    nothing is mapped to a nearest label. The one exception is `concept_aliases`, a fixed map
+    (from the schema) of emotion ids that name exactly one concept, applied to the concept field only.
 
     Args:
         text: Raw model output.
         emotion_ids: Allowed emotion ids.
         concept_ids: Allowed cultural-concept ids (includes "none").
+        concept_aliases: Exact-id map for the concept field, e.g. {"pakikisama_strain": "pakikisama"}.
 
     Returns:
         The parsed result with validity flags.
@@ -93,6 +99,9 @@ def parse_recognition(text: str, emotion_ids: frozenset[str], concept_ids: froze
     if emotion is None:
         problems.append("missing_emotion" if "emotion" not in obj else "unknown_emotion")
     concept = _label(obj.get("cultural_concept"), concept_ids)
+    alias = _label(obj.get("cultural_concept"), frozenset(concept_aliases or ()))
+    if concept is None and alias is not None:
+        concept = concept_aliases[alias]
     if concept is None:
         problems.append("missing_concept" if "cultural_concept" not in obj else "unknown_concept")
     confidence = _confidence(obj.get("confidence"))
@@ -105,4 +114,5 @@ def parse_recognition(text: str, emotion_ids: frozenset[str], concept_ids: froze
         confidence=confidence,
         valid=emotion is not None,
         invalid_reason=";".join(problems) or None,
+        concept_alias=alias is not None and concept == concept_aliases[alias],
     )

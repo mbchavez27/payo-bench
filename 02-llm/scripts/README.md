@@ -43,6 +43,25 @@ uv run python 02-llm/scripts/run.py --profile pilot --task advice-oracle --model
 
 Posts without a label are skipped and counted.
 
+### Pilot report
+
+```bash
+uv run python 02-llm/scripts/pilot_report.py      # prints and writes 02-llm/pilot/outputs/pilot_report.md
+```
+
+You can run it after any subset of tasks; tasks that haven't run yet are shown as "not run". It reports:
+
+- completeness and errors;
+- Task A validity, the predicted-label spread (label collapse) and confidence spread;
+- reply length against the 180-word cap, truncation, and the community reply length on the same posts;
+- the P-Oracle − P0 length gap;
+- latency and prompt length against `num_ctx`;
+- from `pilot_annotations.csv`: retention, the silver posts needed for 300, per-label balance with a pool estimate against the merge threshold, and annotator disagreements (when a post has more than one annotator row).
+
+A **Flags** list at the top collects every threshold that tripped (the constants are in `payo_llm/pilot.py`).
+
+**It never compares model output with the gold labels.** The pilot is not a result, so accuracy comes only from the full run.
+
 Rough time on an M-series Mac: about 1–2 minutes per post per model for all three tasks, so roughly 1–2 hours for the whole pilot.
 
 ## Full run on the GPU box (vLLM)
@@ -71,7 +90,7 @@ uv run python 02-llm/scripts/run.py --profile full --task all --model both --var
 - **Resumable.** Every finished generation is appended to its JSONL file straight away. Rerunning the same command skips what's done and retries anything that ended with an `error`.
 - **Greedy decoding** for the main run (`temperature = 0`, seed 42). `--variance` uses `temperature = 0.7`, `top_p = 0.95` and seeds 1–3, on the first 30 posts.
 - **Prompt lengths.** A prompt that doesn't fit the context is not cut down. It is recorded with `error = "prompt_too_long"`.
-- **Task A parsing.** The first JSON object is read and compared with the exact schema ids. `valid = false` means the emotion is not a schema label, and it counts as incorrect. Concept and confidence problems are listed in `invalid_reason`.
+- **Task A parsing.** The first JSON object is read and compared with the exact schema ids. `valid = false` means the emotion is not a schema label, and it counts as incorrect. Concept and confidence problems are listed in `invalid_reason`. One fixed exception, set before the full run: in the concept field only, the emotion ids in the schema's `concept_aliases` (`pakikisama_strain`, `utang_na_loob_guilt`) are read as the concept they name, and the record gets `concept_alias = true`. The pilot showed both models putting these ids in the concept field even when the prompt told them not to.
 - **Run record.** `run_record.json` records each model's backend, exact weights (HF revision or Ollama digest), precision, decoding, prompt file hashes, library versions and git commit. The chat template each model used is saved to `chat_templates/<model>.txt`.
 
 ## Output files
@@ -95,7 +114,7 @@ Each JSONL line holds:
 | Settings | `decoding` |
 | Output | `raw_output`, `n_prompt_tokens`, `n_output_tokens`, `finish_reason`, `truncated` |
 | Timing and errors | `latency_s`, `error`, `created_at` |
-| Task A only | `emotion`, `cultural_concept`, `confidence`, `valid`, `invalid_reason` |
+| Task A only | `emotion`, `cultural_concept`, `confidence`, `valid`, `invalid_reason`, `concept_alias` |
 | Task B only | `reply_words` |
 
 Ollama counts only the prompt tokens it actually evaluated, so a cached prefix can make `n_prompt_tokens` lower than the true prompt length.

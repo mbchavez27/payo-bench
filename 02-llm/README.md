@@ -25,4 +25,4 @@ Record these for every run so it can be reproduced. `scripts/run.py` writes all 
 | Backend         |       |          |
 | Precision       |       |          |
 | Prompt version  |       |          |
-| Prompt files    | `emotion-recognition_v1`, `advice-p0_v1`, `advice-oracle_v1` | same |
+| Prompt files    | `emotion-recognition_v2`, `advice-p0_v1`, `advice-oracle_v1` | same |

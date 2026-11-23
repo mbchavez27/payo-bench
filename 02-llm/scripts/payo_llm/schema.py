@@ -32,6 +32,15 @@ class Schema:
     def concept_ids(self) -> frozenset[str]:
         return frozenset(item["id"] for item in self.raw["cultural_concepts"])
 
+    @property
+    def concept_aliases(self) -> dict[str, str]:
+        """Emotion ids accepted in the concept field, mapped to their concept id (fixed, logged rule)."""
+        aliases = dict(self.raw.get("concept_aliases", {}))
+        bad = {k: v for k, v in aliases.items() if v not in self.concept_ids}
+        if bad:
+            raise ValueError(f"concept_aliases point to unknown concept ids: {bad}")
+        return aliases
+
     def render_list(self, key: str) -> str:
         """
         Render one schema list for a prompt, in schema order.

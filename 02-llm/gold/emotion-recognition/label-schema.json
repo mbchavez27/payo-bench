@@ -83,6 +83,11 @@
       "definition": "No clear emotion is expressed; the post is mainly a practical, procedural, or informational request."
     }
   ],
+  "concept_aliases_note": "Fixed before the full run (pilot 2026-11-23, analysis plan §11 v1.1): in the cultural_concept field only, these emotion ids are read as the one concept they name. Parsed records flag it with concept_alias = true.",
+  "concept_aliases": {
+    "pakikisama_strain": "pakikisama",
+    "utang_na_loob_guilt": "utang_na_loob"
+  },
   "cultural_concepts": [
     {
       "id": "utang_na_loob",

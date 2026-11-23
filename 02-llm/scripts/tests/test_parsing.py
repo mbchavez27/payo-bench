@@ -54,6 +54,28 @@ def test_confidence_forms(raw, expected):
     assert parse(text).confidence == expected
 
 
+ALIASES = {"pakikisama_strain": "pakikisama", "utang_na_loob_guilt": "utang_na_loob"}
+
+
+def test_concept_alias_maps_emotion_id_in_concept_field_only():
+    concepts = CONCEPTS | {"pakikisama"}
+    result = parse_recognition('{"emotion": "hiya", "cultural_concept": " Pakikisama_Strain", "confidence": 90}',
+                               EMOTIONS, concepts, ALIASES)
+    assert result.cultural_concept == "pakikisama" and result.concept_alias and result.invalid_reason is None
+    exact = parse_recognition('{"emotion": "hiya", "cultural_concept": "hiya", "confidence": 90}',
+                              EMOTIONS, concepts, ALIASES)
+    assert exact.cultural_concept == "hiya" and not exact.concept_alias
+    emotion_field = parse_recognition('{"emotion": "pakikisama", "cultural_concept": "none", "confidence": 90}',
+                                      EMOTIONS, concepts, ALIASES)
+    assert not emotion_field.valid  # aliases never touch the emotion field
+
+
+def test_no_alias_map_keeps_strict_rule():
+    result = parse('{"emotion": "hiya", "cultural_concept": "pakikisama_strain", "confidence": 90}')
+    assert result.cultural_concept is None and result.invalid_reason == "unknown_concept"
+    assert not result.concept_alias
+
+
 def test_skips_a_broken_brace_before_the_real_object():
     result = parse('{oops} then {"emotion": "hiya", "cultural_concept": "none", "confidence": 10}')
     assert result.valid and result.emotion == "hiya"
