@@ -6,12 +6,18 @@ dependencies = [
     "huggingface-hub>=2.4.0",
     "ipykernel>=7.4.0",
     "jupyter>=1.1.1",
+    "krippendorff>=0.9.0",
+    "matplotlib>=3.11.2",
     "nbformat>=5.11.1",
+    "openpyxl>=3.1.5",
     "pandas>=3.1.1",
     "pyarrow>=26.0.1",
     "python-dotenv>=1.2.4",
     "requests>=2.34.2",
+    "scikit-learn>=1.9.1",
+    "scipy>=1.18.1",
     "spacy>=3.8.3",
+    "statsmodels>=0.15.0",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +31,14 @@ dev = [
     "pytest>=9.2.0",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Both code folders are installed (editable) so scripts, notebooks and tests import them the same way
+[tool.hatch.build.targets.wheel]
+packages = ["02-llm/scripts/payo_llm", "03-evaluation/payo_eval"]
+
 [tool.pytest.ini_options]
-pythonpath = ["02-llm/scripts"]
-testpaths = ["02-llm/scripts/tests"]
+pythonpath = ["02-llm/scripts", "03-evaluation"]
+testpaths = ["02-llm/scripts/tests", "03-evaluation/tests"]
