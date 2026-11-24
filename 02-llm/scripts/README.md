@@ -84,6 +84,38 @@ uv run python 02-llm/scripts/run.py --profile full --task all --model both --var
   - Whatever you choose, use the same value for every full-run command, and record it.
 - **`sample_posts.csv`:** this comes from `03-evaluation/workflow.py sample`, the stratified ~236 posts with the pilot ids excluded. Recognition and P0 advice need only this file, so they can run before annotation (keep the outputs unopened until `finalize-labels`). P-Oracle needs `annotations_adjudicated.csv` too.
 
+## Small GPU (8–11 GB), the team's setup
+
+This works with any **RTX 30-series or newer** card that has **8–11 GB**. `auto` picks **FP8 weight-only** because the VRAM is under 11 GB. That is the study precision: report it as "FP8 weight-only (vLLM)". Cards older than RTX 30 (GTX, RTX 20xx, T4) and cards under 8 GB are stopped by `--check`.
+
+**Windows:** vLLM needs WSL2. Once, in PowerShell as admin, run `wsl --install -d Ubuntu-24.04` and restart. Install the normal NVIDIA Windows driver; don't install a Linux driver inside WSL. In Ubuntu, `nvidia-smi` should show the card. Then install uv (`curl -LsSf https://astral.sh/uv/install.sh | sh`), clone the repo **inside the Linux home folder** (not `/mnt/c`, which is slow), and continue below.
+
+```bash
+uv sync --extra full && cp .env.example .env       # HF_TOKEN; accept the Gemma license on Hugging Face first
+nvidia-smi                                          # card, driver, CUDA 12.x
+uv run python 02-llm/scripts/run.py --profile full --check --model both
+#   prints the GPU, compute capability, total/free VRAM and the precision, and stops on a problem
+
+# Trial: 3 posts into a throwaway folder (doesn't touch 02-llm/gold). Confirms both models load and fit.
+uv run python 02-llm/scripts/run.py --profile full --task recognition,advice-p0 --model both \
+    --limit 3 --out-dir /tmp/payo-trial
+# Real runs, all before annotation (rerunning resumes). The root pipeline.py runs exactly these:
+uv run python 02-llm/scripts/run.py --profile full --task recognition,advice-p0 --model both
+uv run python 02-llm/scripts/run.py --profile full --task recognition,advice-p0 --model both --variance
+uv run python 02-llm/scripts/run.py --profile full --task advice-oracle-grid --model both   # 71 posts x 104, the longest
+```
+
+If something fails:
+
+| Message | Fix |
+| --- | --- |
+| `only X of Y GB free ... pass --gpu-mem 0.8` | The display or another app uses VRAM. Close browsers and games, or pass the suggested `--gpu-mem` on **every** command |
+| CUDA out of memory while loading | Rerun with `--gpu-mem 0.85`. If it still fails, move the files in `02-llm/gold/` away and use `--precision bnb4` (4-bit) for **every** run; log it in `02-llm/README.md` |
+| `already has outputs at precision ...` | One file got two precisions. Use the same `--precision` as before, or move the file away to start over |
+| `gated repo` / 401 | Accept the Gemma license on Hugging Face with the account whose token is in `.env` |
+
+Don't open or print the JSONL outputs until `finalize-labels` (RUNBOOK, blindness rule). The run prints only counts.
+
 ## Behavior shared by both profiles
 
 - **One model at a time.** `--model both` runs Gemma and then SEA-LION in separate processes, so memory is fully released in between.
@@ -98,7 +130,8 @@ uv run python 02-llm/scripts/run.py --profile full --task all --model both --var
 ```
 <out>/emotion-recognition/predictions_<model>.jsonl
 <out>/advice-generation/replies_<model>_p0.jsonl
-<out>/advice-generation/replies_<model>_oracle.jsonl
+<out>/advice-generation/replies_<model>_oracle.jsonl      # selected from the grid by finalize-labels (v1.4)
+<out>/advice-generation/oracle_grid/replies_<model>.jsonl # advice-oracle-grid: every emotion x concept per candidate
 <out>/variance/...
 <out>/run_record.json
 <out>/chat_templates/<model>.txt
