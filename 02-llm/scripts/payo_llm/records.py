@@ -42,6 +42,20 @@ def done_keys(path: Path) -> set[tuple]:
     return keys
 
 
+def existing_precisions(path: Path) -> set[str]:
+    """Precisions of the records already in a JSONL file (empty if the file does not exist)."""
+    if not path.exists():
+        return set()
+    found = set()
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                precision = json.loads(line).get("precision")
+                if precision:
+                    found.add(precision)
+    return found
+
+
 def append_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> None:
     """Append records, one JSON object per line, and flush so a crash loses at most one batch."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -104,16 +118,21 @@ def write_manifest(out_dir: Path, inputs: dict[str, str]) -> Path:
     return target
 
 
-def update_run_record(path: Path, model: str, entry: dict[str, Any]) -> None:
+def update_run_record(path: Path, model: str, entry: dict[str, Any], run: str = "main") -> None:
     """
-    Store one model's run settings in run_record.json (one entry per model, latest run wins).
+    Store one model's run settings in run_record.json, one entry per model and run (latest of each run wins).
 
     Args:
         path: run_record.json in the run's output folder.
         model: "gemma" or "sealion".
         entry: Settings to record (backend, model_ref, precision, decoding, prompt files, versions).
+        run: Which run, e.g. "recognition,advice-p0" or "advice-oracle-grid", so runs don't overwrite each other.
     """
     record = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    record[model] = {**entry, "git_commit": git_commit(), "updated_at": now_iso()}
+    runs = record.get(model, {})
+    if "backend" in runs:  # old flat layout: keep it as the "main" run
+        runs = {"main": runs}
+    runs[run] = {**entry, "git_commit": git_commit(), "updated_at": now_iso()}
+    record[model] = runs
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

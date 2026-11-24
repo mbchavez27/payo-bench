@@ -2,7 +2,8 @@
 
 import pytest
 
-from payo_llm.backends import Decoding, OllamaBackend, select_precision
+from payo_llm.backends import Decoding, OllamaBackend, check_gpu, select_precision
+from payo_llm.records import existing_precisions
 
 TAG = "hf.co/aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF:Q8_0"
 
@@ -81,3 +82,18 @@ def test_select_precision(requested, vram, expected):
 def test_select_precision_rejects_unknown():
     with pytest.raises(ValueError):
         select_precision("int3", 8.0)
+
+
+def test_check_gpu_accepts_8gb_ampere_and_rejects_old_or_full_cards():
+    assert check_gpu((8, 6), 8.0, 7.6, 0.90) == []                       # RTX 3060 Ti / 3070, idle
+    assert any("older than RTX 30" in m for m in check_gpu((7, 5), 11.0, 10.8, 0.90))   # RTX 2080 Ti
+    assert any("too small" in m for m in check_gpu((8, 6), 6.0, 5.8, 0.90))              # RTX 3050 6 GB
+    busy = check_gpu((8, 9), 8.0, 6.5, 0.90)                              # display holds 1.5 GB
+    assert len(busy) == 1 and "--gpu-mem 0.78" in busy[0]
+
+
+def test_existing_precisions(tmp_path):
+    path = tmp_path / "out.jsonl"
+    assert existing_precisions(path) == set()
+    path.write_text('{"precision": "fp8"}\n\n{"precision": "fp8"}\n', encoding="utf-8")
+    assert existing_precisions(path) == {"fp8"}

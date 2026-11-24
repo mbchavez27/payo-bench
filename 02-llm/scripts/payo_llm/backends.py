@@ -237,6 +237,45 @@ class VLLMBackend:
                 "cuda": str(torch.version.cuda), "gpu": torch.cuda.get_device_name(0)}
 
 
+MIN_COMPUTE_CAPABILITY = (8, 0)  # Ampere: bf16 compute and vLLM's FP8 (Marlin) kernels
+
+
+def check_gpu(capability: tuple[int, int], total_gb: float, free_gb: float, utilization: float) -> list[str]:
+    """
+    Problems that would stop a vLLM run on this GPU, as readable messages (empty list = fine).
+
+    Args:
+        capability: CUDA compute capability, e.g. (8, 6) for an RTX 30-series card.
+        total_gb: Total VRAM.
+        free_gb: VRAM free right now (a desktop display can hold some).
+        utilization: The gpu_memory_utilization vLLM will ask for.
+
+    Returns:
+        One message per problem.
+    """
+    problems = []
+    if capability < MIN_COMPUTE_CAPABILITY:
+        problems.append(f"compute capability {capability[0]}.{capability[1]} < 8.0: this card is older than RTX 30 "
+                        "(Ampere), so vLLM can't run bf16 or FP8 here. Use the Mac profile instead.")
+    if total_gb < 7.5:
+        problems.append(f"{total_gb:.1f} GB VRAM: too small for a 4B model with an 8k context even at FP8.")
+    elif free_gb < total_gb * utilization:
+        problems.append(f"only {free_gb:.1f} of {total_gb:.1f} GB free, but vLLM will ask for "
+                        f"{total_gb * utilization:.1f} GB (gpu_memory_utilization {utilization}). Close other GPU apps, "
+                        f"or pass --gpu-mem {max(0.5, round(free_gb / total_gb - 0.03, 2))}.")
+    return problems
+
+
+def cuda_info() -> tuple[tuple[int, int], float, float, str]:
+    """(compute capability, total GB, free GB, name) of GPU 0."""
+    import torch  # noqa: PLC0415
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("No CUDA GPU found. The full profile needs Linux (or WSL2) + an NVIDIA GPU.")
+    free, total = torch.cuda.mem_get_info(0)
+    return torch.cuda.get_device_capability(0), total / 1024**3, free / 1024**3, torch.cuda.get_device_name(0)
+
+
 def cuda_vram_gb() -> float:
     """Total VRAM of GPU 0 in GB (needs torch with CUDA, installed with vLLM)."""
     import torch  # noqa: PLC0415
