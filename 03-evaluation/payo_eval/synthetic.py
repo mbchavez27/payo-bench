@@ -119,8 +119,9 @@ def adjudicate_fill(truth: pd.DataFrame) -> Callable[[dict], dict]:
     return lambda row: {f"final_{k}": v for k, v in truth.loc[row["post_id"]].to_dict().items()}
 
 
-def write_model_outputs(gold: Path, sample: pd.DataFrame, truth: pd.DataFrame, rng: np.random.Generator) -> dict:
-    """Fake Task A and Task B outputs (and variance runs) in the run.py layout."""
+def write_model_outputs(gold: Path, sample: pd.DataFrame, candidates: list[str], truth: pd.DataFrame,
+                        rng: np.random.Generator) -> dict:
+    """Fake Task A, P0 and P-Oracle-grid outputs (and variance runs) in the run.py layout, before annotation."""
     schema = load_schema()
     emotions = list(EMOTION_WEIGHTS)
     correct: dict[tuple[str, str], bool] = {}
@@ -150,14 +151,21 @@ def write_model_outputs(gold: Path, sample: pd.DataFrame, truth: pd.DataFrame, r
                 "reply_words": words, "n_prompt_tokens": 900 if condition == "P0" else 1050, "truncated": False,
                 "error": None, "latency_s": 8.0}
 
-    kept = [p for p in sample["post_id"] if truth.loc[p, "exclude_flag"] == "no"]
     for model in ("gemma", "sealion"):
         recs = [recognition(p, model, 42) for p in sample["post_id"]]
         for r in recs:
             correct[(r["post_id"], model)] = r["emotion"] == truth.loc[r["post_id"], "primary_emotion"]
         _jsonl(gold / "emotion-recognition" / f"predictions_{model}.jsonl", recs)
         _jsonl(gold / "advice-generation" / f"replies_{model}_p0.jsonl", [advice(p, model, "P0", 42) for p in sample["post_id"]])
-        _jsonl(gold / "advice-generation" / f"replies_{model}_oracle.jsonl", [advice(p, model, "P-Oracle", 42) for p in kept])
+        grid = []
+        for pid in candidates:
+            for emotion in schema.emotion_ids:
+                for concept in schema.concept_ids:
+                    grid.append(advice(pid, model, "P-Oracle", 42) | {
+                        "task": "advice-oracle-grid", "condition": f"P-Oracle:{emotion}|{concept}",
+                        "oracle_emotion": emotion, "oracle_concept": concept})
+        (gold / "advice-generation" / "oracle_grid").mkdir(parents=True, exist_ok=True)
+        _jsonl(gold / "advice-generation" / "oracle_grid" / f"replies_{model}.jsonl", grid)
         for seed in (1, 2, 3):
             first = list(sample["post_id"][:30])
             _jsonl(gold / "variance" / f"emotion-recognition_predictions_{model}_seed{seed}.jsonl",
@@ -257,8 +265,16 @@ def smoke(folder: Path | None, run_notebooks: Callable[[Path], None] | None = No
         fill_sheet(paths.sheet("pilot", "adjudication"), adjudicate_fill(truth))
     steps.pilot_adjudicate()
 
-    print("== keyword pre-screen and sample")
+    print("== keyword pre-screen, sample and rated-set candidates")
     steps.sample()
+    steps.rating_candidates_step()
+
+    print("== fake GPU work, all before annotation (recognition, P0, P-Oracle grid)")
+    sample = pd.read_csv(paths.sample, dtype={"post_id": str})
+    candidates = pd.read_csv(paths.rating_candidates, dtype=str)["post_id"].tolist()
+    correct = write_model_outputs(paths.gold, sample, candidates, truth, rng)
+
+    print("== blind annotation")
     for person in people:
         fill_sheet(paths.sheet("annotation", person), annotate(truth, rng))
 
@@ -268,9 +284,7 @@ def smoke(folder: Path | None, run_notebooks: Callable[[Path], None] | None = No
         fill_sheet(paths.sheet("annotation", "adjudication"), adjudicate_fill(truth))
     steps.finalize_labels(accept_kappa=True)
 
-    print("== fake full run and rating")
-    sample = pd.read_csv(paths.sample, dtype={"post_id": str})
-    correct = write_model_outputs(paths.gold, sample, truth, rng)
+    print("== rating")
     steps.rating_sheets()
     key = pd.read_csv(paths.items_key, dtype=str)
     for rater in cfg["roster"]["raters"]:

@@ -20,8 +20,9 @@ from payo_eval.instruments import (LABEL_FIELDS, adjudication_columns, annotatio
                                    check_exclusion_reasons, post_text, prescreen_columns, rating_columns)
 from payo_eval.paths import Paths, get_paths, load_config, roster
 from payo_eval.rating import bestfit_key, build_items, collect_ratings, rater_frames
+from payo_eval.oracle import select_oracle
 from payo_eval.sampling import (assign, draw_prescreen_pool, keyword_prescreen, n_to_draw, rated_set,
-                                stratified_sample)
+                                rating_candidates, stratified_sample)
 from payo_eval.sheets import normalize, read_sheet, validate, write_sheet
 from payo_eval.report import finalization_report
 
@@ -191,10 +192,33 @@ def sample(force: bool = False) -> None:
     print(drawn.groupby(["arm", "domain_guess"]).size().rename("posts").to_string())
     print(f"\nWrote {paths.sample} ({len(drawn)} posts), {paths.assignment} "
           f"({int((plan['slot'] == 2).sum())} double-annotated), and one sheet per annotator in {paths.work / 'annotation'}.\n"
-          "Next, in either order (RUNBOOK §2):\n"
-          "  - GPU run 1: run.py --profile full --task recognition,advice-p0 --model both. Nobody opens the outputs\n"
-          "    until `finalize-labels` has run.\n"
-          "  - Annotate blind (codebook §1-§7), then run `adjudication-sheet`.")
+          "Next: `rating-candidates`, then all GPU work (pipeline.py, RUNBOOK §2; nobody opens the outputs until\n"
+          "`finalize-labels`). Annotation (RUNBOOK §3) can start any time, blind.")
+
+
+# ---------------------------------------------------------------- B2. rated-set candidates
+
+def rating_candidates_step(force: bool = False) -> None:
+    """Draw the rated-set candidates now, so the P-Oracle grid can run before annotation (plan v1.4)."""
+    paths, cfg, _, _ = _context()
+    _refuse_if_exists(paths.rating_candidates, force=force)
+    sample = pd.read_csv(paths.sample, dtype=str)
+    n = n_to_draw(cfg["rating"]["n_eval"], cfg["sample"]["expected_retention"])
+    drawn = rating_candidates(sample, n, cfg["seed"] + 11)
+    _write_csv(drawn, paths.rating_candidates)
+    print(drawn.groupby("stratum").size().rename("candidates").to_string())
+    print(f"\nWrote {paths.rating_candidates} ({len(drawn)} candidates for {cfg['rating']['n_eval']} rated posts).\n"
+          "Next: the GPU runs (pipeline.py), including the P-Oracle grid for these posts.")
+
+
+def _select_oracle_if_grid(paths: Paths, schema) -> None:
+    """After the labels are frozen: pick each candidate's P-Oracle reply from the pre-generated grid."""
+    if not paths.oracle_grid.exists():
+        print("No P-Oracle grid found: run `run.py --task advice-oracle` after this, or the grid, then rerun.")
+        return
+    candidates = set(pd.read_csv(paths.rating_candidates, dtype=str)["post_id"])
+    written = select_oracle(paths.oracle_grid, paths.advice, paths.adjudicated, candidates, schema)
+    print("P-Oracle replies selected from the grid: " + ", ".join(f"{m} {n}" for m, n in written.items()))
 
 
 # ---------------------------------------------------------------- C. adjudication
@@ -234,8 +258,9 @@ def finalize_labels(accept_kappa: bool = False) -> None:
     cols = ["post_id", *LABEL_FIELDS, "label_source", "emotion_final", "emotion_type"]
     _write_csv(result.labels[cols], paths.adjudicated)
     (paths.er / "merges.json").write_text(json.dumps(result.merges, indent=2) + "\n", encoding="utf-8")
-    print(f"\nWrote {paths.adjudicated} and merges.json.\n"
-          "Next: GPU run 2: run.py --profile full --task advice-oracle --model both, then `rating-sheets`.")
+    print(f"\nWrote {paths.adjudicated} and merges.json.")
+    _select_oracle_if_grid(paths, schema)
+    print("Next: `rating-sheets`.")
 
 
 # ---------------------------------------------------------------- E. rating sheets
@@ -253,7 +278,18 @@ def rating_sheets(force: bool = False) -> None:
         have_all &= set(table["post_id"])
     if len(replies) < 4:
         raise SystemExit("The full run needs P0 and P-Oracle replies for both models before rating sheets can be made.")
-    rated = rated_set(gold[gold["post_id"].isin(have_all)], cfg["rating"]["n_eval"], cfg["seed"])
+    n_eval = cfg["rating"]["n_eval"]
+    if paths.rating_candidates.exists():  # v1.4: the first n_eval candidates kept after annotation
+        order = pd.read_csv(paths.rating_candidates, dtype=str)["post_id"]
+        kept = gold.set_index("post_id")
+        ids = [p for p in order if p in kept.index and p in have_all][:n_eval]
+        if len(ids) < n_eval:
+            print(f"Warning: only {len(ids)} of {len(order)} candidates survived annotation (wanted {n_eval}); "
+                  "rating all of them. Log this in analysis-plan.md §11.")
+        rated = kept.loc[ids].reset_index()
+        rated["stratum"] = rated["emotion_type"] + "/" + rated["domain"]
+    else:
+        rated = rated_set(gold[gold["post_id"].isin(have_all)], n_eval, cfg["seed"])
     _write_csv(rated[["post_id", "emotion_type", "domain", "stratum"]], paths.ratings_dir / "rated_posts.csv")
 
     raw = pd.read_csv(paths.annotations_raw, dtype=str).fillna("")
@@ -315,13 +351,14 @@ def status() -> None:
           if manual else []),
         ("sample + annotation sheets", lambda: paths.sample.exists(),
          "pre-screen, then sample" if manual else "sample (keyword pre-screen)"),
-        ("GPU run 1: recognition + P0", lambda: any((paths.gold / "advice-generation").glob("replies_*_p0.jsonl"))
-         and any((paths.gold / "emotion-recognition").glob("predictions_*.jsonl")),
-         "run.py --profile full --task recognition,advice-p0 --model both (or annotate first)"),
+        ("rated-set candidates", lambda: paths.rating_candidates.exists(), "rating-candidates"),
+        ("GPU: recognition + P0 + P-Oracle grid",
+         lambda: len(list(paths.advice.glob("replies_*_p0.jsonl"))) >= 2
+         and len(list(paths.er.glob("predictions_*.jsonl"))) >= 2 and len(list(paths.oracle_grid.glob("*.jsonl"))) >= 2,
+         "pipeline.py on the GPU PC, then copy 02-llm/gold/ back here"),
         ("collected annotations", lambda: paths.annotations_raw.exists(), "annotate blind, then adjudication-sheet"),
-        ("gold labels", lambda: paths.adjudicated.exists(), "adjudicate, then finalize-labels"),
-        ("GPU run 2: P-Oracle", lambda: any((paths.gold / "advice-generation").glob("replies_*_oracle.jsonl")),
-         "run.py --profile full --task advice-oracle --model both"),
+        ("gold labels + P-Oracle selected", lambda: paths.adjudicated.exists()
+         and len(list(paths.advice.glob("replies_*_oracle.jsonl"))) >= 2, "adjudicate, then finalize-labels"),
         ("rating sheets", lambda: paths.items_key.exists(), "rating-sheets"),
         ("ratings", lambda: paths.ratings.exists(), "rate, then collect-ratings"),
     ]

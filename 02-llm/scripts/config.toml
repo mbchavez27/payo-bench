@@ -47,6 +47,8 @@ precision = "auto"    # bf16 if VRAM >= 11 GB, else fp8 (weight-only); override 
 max_model_len = 8192  # longest silver post is ~5.7k prompt tokens; KV for 8k fits on 8 GB with fp8 weights
 gpu_memory_utilization = 0.90
 posts = "02-llm/gold/sample_posts.csv"
+# advice-oracle-grid (v1.4): the rated-set candidates, from `workflow.py rating-candidates`
+oracle_grid_posts = "02-llm/gold/author-ratings/rating_candidates.csv"
 gold = "02-llm/gold/emotion-recognition/annotations_adjudicated.csv"
 out_dir = "02-llm/gold"
 batch_size = 64       # prompts per vLLM call; also the checkpoint size for resuming

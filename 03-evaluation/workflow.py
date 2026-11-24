@@ -3,10 +3,10 @@ The human-in-the-loop workflow, one command per gate. See RUNBOOK.md for the ful
 
     uv run python 03-evaluation/workflow.py status
     uv run python 03-evaluation/workflow.py sample              # B. keyword pre-screen, stratified sample, sheets
-        (GPU run 1: recognition + P0; outputs stay unopened until D)
+    uv run python 03-evaluation/workflow.py rating-candidates   # B2. rated-set candidates (for the P-Oracle grid)
+        (GPU, pipeline.py: recognition + P0 + P-Oracle grid; outputs stay unopened until D)
     uv run python 03-evaluation/workflow.py adjudication-sheet  # C. collect blind annotations, disagreements
-    uv run python 03-evaluation/workflow.py finalize-labels     # D. gold labels, merges, κ gate
-        (GPU run 2: P-Oracle, which needs the gold labels)
+    uv run python 03-evaluation/workflow.py finalize-labels     # D. gold labels, merges, κ gate, P-Oracle selected
     uv run python 03-evaluation/workflow.py rating-sheets       # E. blinded rating sheets
     uv run python 03-evaluation/workflow.py collect-ratings     # F. ratings.csv, bestfit.csv
     uv run python 03-evaluation/workflow.py analyze             # run notebooks 01-07 headless
@@ -44,7 +44,7 @@ def run_notebooks(out_dir: Path | None = None) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command", choices=["status", "pilot-sheets", "pilot-merge", "pilot-adjudicate",
-                                            "prescreen-sheet", "sample", "adjudication-sheet", "finalize-labels",
+                                            "prescreen-sheet", "sample", "rating-candidates", "adjudication-sheet", "finalize-labels",
                                             "rating-sheets", "collect-ratings", "analyze", "smoke"])
     parser.add_argument("--force", action="store_true", help="overwrite existing sheets/outputs of this step")
     parser.add_argument("--accept-kappa", action="store_true", help="finalize-labels: continue past the κ gate")
@@ -64,6 +64,8 @@ def main() -> None:
             steps.prescreen_sheet(args.force)
         case "sample":
             steps.sample(args.force)
+        case "rating-candidates":
+            steps.rating_candidates_step(args.force)
         case "adjudication-sheet":
             steps.adjudication_sheet(args.force)
         case "finalize-labels":

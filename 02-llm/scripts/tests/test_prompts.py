@@ -8,7 +8,7 @@ from payo_llm import ROOT
 from payo_llm.data import GoldLabel, Post
 from payo_llm.prompts import format_post, load_prompt, render
 from payo_llm.schema import load_schema
-from run import PROMPT_FILES, build_jobs
+from run import PROMPT_FILES, build_jobs, grid_condition, parse_args
 
 PROMPT_DIR = ROOT / "02-llm" / "prompts"
 POST = Post("abc123", "Paano ko sasabihin sa magulang ko?", "Ako ang breadwinner pero pagod na ako.", None)
@@ -65,3 +65,21 @@ def test_format_post_omits_empty_previous_attempts():
     assert "Previous Attempts" not in format_post("goal", "ctx", None)
     assert "Previous Attempts" not in format_post("goal", "ctx", "  ")
     assert format_post("goal", "ctx", "tried").endswith("Previous Attempts: tried")
+
+
+def test_oracle_grid_covers_every_label_pair_and_matches_the_oracle_prompt(schema):
+    template = load_prompt(PROMPT_DIR / PROMPT_FILES["advice-oracle-grid"])
+    jobs, skipped = build_jobs("advice-oracle-grid", [POST], schema, template, None)
+    assert skipped == 0 and len(jobs) == len(schema.emotion_ids) * len(schema.concept_ids)
+    assert len({j.condition for j in jobs}) == len(jobs)
+    assert {j.oracle_label for j in jobs} == {(e, c) for e in schema.emotion_ids for c in schema.concept_ids}
+    # The grid cell for a label pair is the exact prompt advice-oracle renders for that gold label
+    cell = next(j for j in jobs if j.oracle_label == ("tampo", "hiya"))
+    oracle = build_jobs("advice-oracle", [POST], schema, template, {POST.post_id: GoldLabel("tampo", "hiya")})[0][0]
+    assert cell.prompt == oracle.prompt and cell.condition == grid_condition("tampo", "hiya")
+
+
+def test_grid_task_refuses_variance(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["run.py", "--profile", "full", "--task", "advice-oracle-grid", "--variance"])
+    with pytest.raises(SystemExit):
+        parse_args()

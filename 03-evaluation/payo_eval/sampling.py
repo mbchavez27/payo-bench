@@ -222,6 +222,32 @@ def rated_set(labels: pd.DataFrame, n_eval: int, seed: int) -> pd.DataFrame:
     return pd.concat(parts).sort_values("post_id").reset_index(drop=True)
 
 
+def rating_candidates(sample: pd.DataFrame, n: int, seed: int) -> pd.DataFrame:
+    """
+    Draw the rated-set candidates before annotation (analysis plan v1.4), so P-Oracle can be pre-generated.
+
+    Stratified by the pre-screen stratum (arm x domain_guess), proportional with largest remainder. The
+    returned order is random and fixed: the rated set is later the first `n_eval` candidates that are kept
+    after annotation.
+
+    Args:
+        sample: sample_posts.csv (post_id, stratum).
+        n: Candidates to draw (n_eval / expected retention, rounded up).
+        seed: Random seed.
+
+    Returns:
+        post_id, stratum, candidate_rank (1 = first in line).
+    """
+    rng = np.random.default_rng(seed)
+    parts = []
+    for stratum, k in allocate(sample["stratum"].value_counts().to_dict(), n).items():
+        cell = sample[sample["stratum"] == stratum].sort_values("post_id")
+        parts.append(cell.iloc[rng.permutation(len(cell))[:k]])
+    drawn = pd.concat(parts).sort_values("post_id")
+    drawn = drawn.iloc[rng.permutation(len(drawn))][["post_id", "stratum"]].reset_index(drop=True)
+    return drawn.assign(candidate_rank=range(1, len(drawn) + 1))
+
+
 def n_to_draw(n_target: int, expected_retention: float) -> int:
     """Posts to draw so that about n_target survive the annotation exclusions."""
     return math.ceil(n_target / expected_retention)

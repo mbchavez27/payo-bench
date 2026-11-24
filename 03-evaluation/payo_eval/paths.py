@@ -73,6 +73,14 @@ class Paths:
         return self.gold / "author-ratings"
 
     @property
+    def rating_candidates(self) -> Path:
+        return self.ratings_dir / "rating_candidates.csv"
+
+    @property
+    def oracle_grid(self) -> Path:
+        return self.advice / "oracle_grid"
+
+    @property
     def items_key(self) -> Path:
         return self.ratings_dir / "items_key.csv"
 

@@ -22,23 +22,30 @@ from typing import Any
 from dotenv import load_dotenv
 
 from payo_llm import ROOT
-from payo_llm.backends import (Backend, Decoding, Generation, OllamaBackend, VLLMBackend, cuda_vram_gb,
-                               select_precision)
+from payo_llm.backends import (Backend, Decoding, Generation, OllamaBackend, VLLMBackend, check_gpu, cuda_info,
+                               cuda_vram_gb, select_precision)
 from payo_llm.data import GoldLabel, Post, load_gold, load_posts, read_post_ids
 from payo_llm.parsing import parse_recognition
 from payo_llm.prompts import PromptTemplate, format_post, load_prompt, render, sha256_text
-from payo_llm.records import append_jsonl, done_keys, now_iso, sha256_file, update_run_record, write_manifest
+from payo_llm.records import append_jsonl, done_keys, existing_precisions, now_iso, sha256_file, update_run_record, write_manifest
 from payo_llm.schema import SCHEMA_PATH, Schema, load_schema
 
 CONFIG_PATH = Path(__file__).resolve().parent / "config.toml"
 PROMPT_DIR = ROOT / "02-llm" / "prompts"
-TASKS = ("recognition", "advice-p0", "advice-oracle")
+TASKS = ("recognition", "advice-p0", "advice-oracle", "advice-oracle-grid")
+DEFAULT_TASKS = ("recognition", "advice-p0", "advice-oracle")  # what --task all means
 PROMPT_FILES = {
     "recognition": "emotion-recognition_v2.md",
     "advice-p0": "advice-p0_v1.md",
     "advice-oracle": "advice-oracle_v1.md",
+    "advice-oracle-grid": "advice-oracle_v1.md",  # the same prompt, for every emotion x concept (v1.4)
 }
 CONDITIONS = {"recognition": "none", "advice-p0": "P0", "advice-oracle": "P-Oracle"}
+
+
+def grid_condition(emotion: str, concept: str) -> str:
+    """Condition of one pre-generated P-Oracle reply: unique per label pair, so resume keys stay unique."""
+    return f"P-Oracle:{emotion}|{concept}"
 
 
 @dataclass(frozen=True)
@@ -49,6 +56,8 @@ class Job:
     task: str
     prompt: str
     template: PromptTemplate
+    condition: str = ""
+    oracle_label: tuple[str, str] | None = None  # (emotion, concept) given in a grid prompt
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,13 +68,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--posts", type=Path, help="CSV with a post_id column (overrides the profile)")
     parser.add_argument("--limit", type=int, help="only the first N posts (smoke tests)")
     parser.add_argument("--precision", choices=["auto", "bf16", "fp8", "bnb4"], help="full profile only")
+    parser.add_argument("--gpu-mem", type=float, help="full profile: override gpu_memory_utilization (0-1)")
+    parser.add_argument("--out-dir", type=Path, help="write outputs here instead of the profile's folder (trial runs)")
     parser.add_argument("--variance", action="store_true", help="sampled runs on a subset, for variance")
     parser.add_argument("--check", action="store_true", help="preflight only: no generation")
     args = parser.parse_args()
-    args.tasks = list(TASKS) if args.task == "all" else [t.strip() for t in args.task.split(",")]
+    args.tasks = list(DEFAULT_TASKS) if args.task == "all" else [t.strip() for t in args.task.split(",")]
     unknown = set(args.tasks) - set(TASKS)
     if unknown:
         parser.error(f"unknown task(s): {sorted(unknown)}")
+    if args.variance and "advice-oracle-grid" in args.tasks:
+        parser.error("advice-oracle-grid has no variance run (analysis plan v1.4)")
     return args
 
 
@@ -79,6 +92,10 @@ def child_argv(args: argparse.Namespace, model: str) -> list[str]:
         argv += ["--limit", str(args.limit)]
     if args.precision:
         argv += ["--precision", args.precision]
+    if args.gpu_mem:
+        argv += ["--gpu-mem", str(args.gpu_mem)]
+    if args.out_dir:
+        argv += ["--out-dir", str(args.out_dir)]
     if args.variance:
         argv.append("--variance")
     if args.check:
@@ -111,6 +128,7 @@ def build_jobs(task: str, posts: list[Post], schema: Schema, template: PromptTem
 
     Returns:
         The jobs, and how many posts were skipped for lacking a gold label (P-Oracle only).
+        advice-oracle-grid makes one job per post x emotion x concept, in post order (prefix-cache friendly).
     """
     shared = {
         "emotion_list": schema.render_list("emotions"),
@@ -120,6 +138,15 @@ def build_jobs(task: str, posts: list[Post], schema: Schema, template: PromptTem
     jobs, skipped = [], 0
     for post in posts:
         values = {**shared, "post": format_post(post.problem_goal, post.context, post.previous_attempts)}
+        if task == "advice-oracle-grid":
+            for emotion_id in schema.emotion_ids:
+                for concept_id in schema.concept_ids:
+                    emotion, concept = schema.emotion(emotion_id), schema.concept(concept_id)
+                    cell = values | {"emotion_name": emotion["name"], "emotion_definition": emotion["definition"],
+                                     "concept_name": concept["name"], "concept_definition": concept["definition"]}
+                    jobs.append(Job(post, task, render(template, cell), template,
+                                    grid_condition(emotion_id, concept_id), (emotion_id, concept_id)))
+            continue
         if task == "advice-oracle":
             label = gold.get(post.post_id) if gold else None
             if label is None:
@@ -129,13 +156,15 @@ def build_jobs(task: str, posts: list[Post], schema: Schema, template: PromptTem
             emotion, concept = schema.emotion(label.emotion), schema.concept(label.cultural_concept)
             values |= {"emotion_name": emotion["name"], "emotion_definition": emotion["definition"],
                        "concept_name": concept["name"], "concept_definition": concept["definition"]}
-        jobs.append(Job(post, task, render(template, values), template))
+        jobs.append(Job(post, task, render(template, values), template, CONDITIONS[task]))
     return jobs, skipped
 
 
 def output_path(out_dir: Path, task: str, model: str, seed: int | None) -> Path:
     if task == "recognition":
         name = f"emotion-recognition/predictions_{model}"
+    elif task == "advice-oracle-grid":
+        name = f"advice-generation/oracle_grid/replies_{model}"
     else:
         name = f"advice-generation/replies_{model}_{'p0' if task == 'advice-p0' else 'oracle'}"
     if seed is not None:
@@ -149,7 +178,7 @@ def to_record(job: Job, gen: Generation, backend: Backend, model: str, decoding:
         "post_id": job.post.post_id,
         "model": model,
         "task": job.task,
-        "condition": CONDITIONS[job.task],
+        "condition": job.condition,
         "seed": decoding.seed,
         "backend": backend.name,
         "model_ref": backend.model_ref,
@@ -174,14 +203,21 @@ def to_record(job: Job, gen: Generation, backend: Backend, model: str, decoding:
                    "invalid_reason": parsed.invalid_reason, "concept_alias": parsed.concept_alias}
     else:
         record["reply_words"] = len(gen.text.split())
+    if job.oracle_label:
+        record["oracle_emotion"], record["oracle_concept"] = job.oracle_label
     return record
 
 
 def run_jobs(jobs: list[Job], backend: Backend, model: str, decoding: Decoding, schema: Schema,
              path: Path, batch_size: int) -> dict[str, int]:
     """Generate in batches, appending after each batch so an interrupted run can resume."""
+    mixed = existing_precisions(path) - {backend.precision}
+    if mixed:
+        raise SystemExit(f"{path} already has outputs at precision {sorted(mixed)}, but this run is "
+                         f"{backend.precision}. Every study run must use one precision: rerun with the same "
+                         "--precision, or move that file away to start over.")
     done = done_keys(path)
-    pending = [j for j in jobs if (j.post.post_id, model, j.task, CONDITIONS[j.task], decoding.seed) not in done]
+    pending = [j for j in jobs if (j.post.post_id, model, j.task, j.condition, decoding.seed) not in done]
     stats = {"skipped_done": len(jobs) - len(pending), "written": 0, "errors": 0, "invalid": 0, "truncated": 0}
     for start in range(0, len(pending), batch_size):
         batch = pending[start:start + batch_size]
@@ -205,6 +241,11 @@ def preflight(cfg: dict[str, Any], profile: dict[str, Any], model: str, precisio
         print(f"[ok] {model}: {backend.model_ref} ({backend.precision}), {backend.versions()}")
         return
     precision = resolve_precision(profile, precision_override)
+    capability, total, free, name = cuda_info()
+    print(f"GPU: {name}, compute capability {capability[0]}.{capability[1]}, {total:.1f} GB total, {free:.1f} GB free")
+    problems = check_gpu(capability, total, free, profile["gpu_memory_utilization"])
+    if problems:
+        sys.exit("GPU check failed:\n  " + "\n  ".join(problems))
     import vllm  # noqa: PLC0415
     from huggingface_hub import model_info  # noqa: PLC0415
 
@@ -214,13 +255,20 @@ def preflight(cfg: dict[str, Any], profile: dict[str, Any], model: str, precisio
 
 
 def run_model(args: argparse.Namespace, cfg: dict[str, Any], model: str) -> None:
-    profile = cfg["profiles"][args.profile]
+    profile = dict(cfg["profiles"][args.profile])
+    if args.gpu_mem:
+        profile["gpu_memory_utilization"] = args.gpu_mem
     if args.check:
         preflight(cfg, profile, model, args.precision)
         return
 
     schema = load_schema()
-    post_ids = read_post_ids(ROOT / (args.posts or profile["posts"]))
+    grid = args.tasks == ["advice-oracle-grid"]
+    if "advice-oracle-grid" in args.tasks and not grid:
+        sys.exit("Run advice-oracle-grid on its own: it uses a different post list (the rated-set candidates).")
+    if grid and not (args.posts or profile.get("oracle_grid_posts")):
+        sys.exit(f"The {args.profile} profile has no oracle_grid_posts; pass --posts.")
+    post_ids = read_post_ids(ROOT / (args.posts or profile["oracle_grid_posts" if grid else "posts"]))
     if args.limit:
         post_ids = post_ids[:args.limit]
     variance = cfg["decoding"]["variance"]
@@ -231,7 +279,7 @@ def run_model(args: argparse.Namespace, cfg: dict[str, Any], model: str) -> None
     gold = load_gold(ROOT / profile["gold"], schema) if "advice-oracle" in args.tasks else None
 
     precision = resolve_precision(profile, args.precision) if profile["backend"] == "vllm" else None
-    out_dir = ROOT / profile["out_dir"]
+    out_dir = args.out_dir.resolve() if args.out_dir else ROOT / profile["out_dir"]
     print(f"Loading {model} ({profile['backend']}) for {len(posts)} posts: {', '.join(args.tasks)}")
     backend = make_backend(cfg, profile, model, precision)
     try:
@@ -264,17 +312,19 @@ def run_model(args: argparse.Namespace, cfg: dict[str, Any], model: str) -> None
             "seed": cfg["seed"],
             "prompt_files": {t.name: {"version": t.version, "sha256": t.sha256} for t in templates.values()},
             "schema_version": schema.version,
-            "posts_file": str(args.posts or profile["posts"]),
+            "posts_file": str(args.posts or profile["oracle_grid_posts" if grid else "posts"]),
             "n_posts": len(posts),
             "versions": backend.versions(),
-        })
+        }, run=",".join(args.tasks) + ("+variance" if args.variance else ""))
     finally:
         backend.close()
 
 
 def manifest_inputs(args: argparse.Namespace, cfg: dict[str, Any]) -> dict[str, str]:
     profile = cfg["profiles"][args.profile]
-    paths = [SCHEMA_PATH, ROOT / (args.posts or profile["posts"]), ROOT / profile["gold"],
+    paths = [SCHEMA_PATH, ROOT / profile["posts"], ROOT / profile.get("oracle_grid_posts", profile["posts"]),
+             ROOT / profile["gold"],
+             *([ROOT / args.posts] if args.posts else []),
              ROOT / "01-preprocessing" / "silver" / "MANIFEST.json",
              *(PROMPT_DIR / name for name in PROMPT_FILES.values())]
     return {str(p.relative_to(ROOT)): sha256_file(p) for p in paths if p.exists()}
@@ -294,7 +344,7 @@ def main() -> None:
     else:
         run_model(args, cfg, args.model)
 
-    if args.profile == "full" and not args.check:
+    if args.profile == "full" and not args.check and not args.out_dir:
         path = write_manifest(ROOT / cfg["profiles"]["full"]["out_dir"], manifest_inputs(args, cfg))
         print(f"Manifest: {path.relative_to(ROOT)}")
 
