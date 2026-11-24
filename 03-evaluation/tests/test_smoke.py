@@ -16,7 +16,9 @@ def test_smoke_chain(tmp_path):
         key = pd.read_csv(gold / "author-ratings" / "items_key.csv", dtype=str)
         ratings = pd.read_csv(gold / "author-ratings" / "ratings.csv")
         assert {"emotion_final", "emotion_type"} <= set(adjudicated.columns)
-        assert key["post_id"].nunique() == 80 and len(key) == 400
+        assert key["post_id"].nunique() == 60 and len(key) == 300
+        prescreen = pd.read_csv(gold / "emotion-recognition" / "prescreen.csv", dtype=str)
+        assert set(prescreen["screener"]) == {"keywords"} and (prescreen["concept_likely"] == "yes").any()
         assert set(ratings["item_id"]) == set(key["item_id"])
         assert (base / "pilot" / "pilot_annotations.csv").exists()
     finally:

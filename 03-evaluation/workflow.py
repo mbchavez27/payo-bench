@@ -2,17 +2,18 @@
 The human-in-the-loop workflow, one command per gate. See RUNBOOK.md for the full order.
 
     uv run python 03-evaluation/workflow.py status
-    uv run python 03-evaluation/workflow.py pilot-sheets        # every annotator labels the pilot posts
-    uv run python 03-evaluation/workflow.py pilot-merge         # -> pilot_report.py, adjudication sheet
-    uv run python 03-evaluation/workflow.py pilot-adjudicate    # -> pilot_annotations.csv (pilot P-Oracle)
-    uv run python 03-evaluation/workflow.py prescreen-sheet     # A. pre-screen pool
-    uv run python 03-evaluation/workflow.py sample              # B. stratified sample + annotation sheets
-    uv run python 03-evaluation/workflow.py adjudication-sheet  # C. collect annotations, disagreements
+    uv run python 03-evaluation/workflow.py sample              # B. keyword pre-screen, stratified sample, sheets
+        (GPU run 1: recognition + P0; outputs stay unopened until D)
+    uv run python 03-evaluation/workflow.py adjudication-sheet  # C. collect blind annotations, disagreements
     uv run python 03-evaluation/workflow.py finalize-labels     # D. gold labels, merges, κ gate
-    uv run python 03-evaluation/workflow.py rating-sheets       # E. after the full run: blinded rating sheets
+        (GPU run 2: P-Oracle, which needs the gold labels)
+    uv run python 03-evaluation/workflow.py rating-sheets       # E. blinded rating sheets
     uv run python 03-evaluation/workflow.py collect-ratings     # F. ratings.csv, bestfit.csv
     uv run python 03-evaluation/workflow.py analyze             # run notebooks 01-07 headless
     uv run python 03-evaluation/workflow.py smoke               # whole chain on synthetic data
+
+Optional (not used in v1.3): pilot-sheets, pilot-merge, pilot-adjudicate (a shared pilot), and
+prescreen-sheet (a manual pre-screen, with [prescreen] method = "manual").
 
 Sheets go to 02-llm/work/ (gitignored: they contain post text). Ids and labels go to 02-llm/gold/.
 """

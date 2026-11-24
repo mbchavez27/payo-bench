@@ -5,6 +5,7 @@ Every function takes an explicit seed, so each draw is reproducible from config.
 """
 
 import math
+import re
 from collections.abc import Mapping, Sequence
 
 import numpy as np
@@ -60,6 +61,58 @@ def draw_prescreen_pool(silver_ids: Sequence[str], exclude: set[str], n: int, se
     pool = sorted(set(silver_ids) - exclude)
     rng = np.random.default_rng(seed)
     return [pool[i] for i in rng.permutation(len(pool))[: min(n, len(pool))]]
+
+
+RELATIONSHIP_DOMAINS = ("family", "romantic", "friendship", "work_school")  # tie order = codebook §7 priority
+
+
+def _pattern(words: Sequence[str]) -> re.Pattern:
+    """Whole-word, case-insensitive match for any of the words or phrases (spaces match any whitespace)."""
+    alternatives = sorted({re.escape(w.lower()).replace(r"\ ", r"\s+") for w in words}, key=len, reverse=True)
+    return re.compile(r"(?<![\w-])(?:" + "|".join(alternatives) + r")(?![\w-])", re.IGNORECASE)
+
+
+def keyword_prescreen(silver: pd.DataFrame, exclude_ids: set[str], keywords: Mapping) -> pd.DataFrame:
+    """
+    Automatic pre-screen of every silver post with fixed keyword lists (code only, no LLM).
+
+    It returns the same columns as the screener's sheet, so the stratified draw and the pre-screen bias
+    analysis work unchanged.
+    - `exclude_flag` = yes when a crisis term matches (the annotators apply the full §2 screen again).
+    - `concept_likely` = yes when any concept term matches.
+    - `domain_guess` follows codebook §7: the relationship domain with the most matches (ties in
+      RELATIONSHIP_DOMAINS order), else `money` if money terms match, else `other`.
+
+    Args:
+        silver: Silver posts (post_id, problem_goal, context, previous_attempts).
+        exclude_ids: Ids never sampled (the pilot posts).
+        keywords: `[prescreen.keywords]` from config.toml: concept, exclude, and domain.<id> lists.
+
+    Returns:
+        post_id, exclude_flag, exclude_reason, concept_likely, domain_guess, notes (the matched terms).
+    """
+    concept, crisis = _pattern(keywords["concept"]), _pattern(keywords["exclude"])
+    domains = {d: _pattern(words) for d, words in keywords["domain"].items()}
+    rows = []
+    for _, post in silver.sort_values("post_id").iterrows():
+        if post["post_id"] in exclude_ids:
+            continue
+        text = " ".join(str(post[c]) for c in ("problem_goal", "context", "previous_attempts")
+                        if isinstance(post[c], str))
+        hits = {d: len(p.findall(text)) for d, p in domains.items()}
+        relation = [d for d in RELATIONSHIP_DOMAINS if hits.get(d, 0) > 0]
+        if relation:
+            domain = max(relation, key=lambda d: (hits[d], -RELATIONSHIP_DOMAINS.index(d)))
+        else:
+            domain = "money" if hits.get("money", 0) else "other"
+        concept_terms = sorted({m.lower() for m in concept.findall(text)})
+        crisis_terms = sorted({m.lower() for m in crisis.findall(text)})
+        rows.append({"post_id": post["post_id"], "exclude_flag": "yes" if crisis_terms else "no",
+                     "exclude_reason": "self_harm_crisis" if crisis_terms else "",
+                     "concept_likely": "yes" if concept_terms else "no", "domain_guess": domain,
+                     "notes": "; ".join(concept_terms + [f"crisis:{t}" for t in crisis_terms])})
+    return pd.DataFrame(rows, columns=["post_id", "exclude_flag", "exclude_reason", "concept_likely",
+                                       "domain_guess", "notes"])
 
 
 def stratified_sample(prescreen: pd.DataFrame, n_draw: int, concept_share: float, domain_floor: int,

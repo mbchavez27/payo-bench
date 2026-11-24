@@ -3,7 +3,9 @@
 import pandas as pd
 import pytest
 
-from payo_eval.sampling import allocate, assign, draw_prescreen_pool, n_to_draw, rated_set, stratified_sample
+from payo_eval.paths import load_config
+from payo_eval.sampling import (allocate, assign, draw_prescreen_pool, keyword_prescreen, n_to_draw, rated_set,
+                                stratified_sample)
 
 
 def test_allocate_floor_proportional_and_caps():
@@ -88,3 +90,41 @@ def test_rated_set_size_and_strata():
     assert len(rated) == 80 and rated["post_id"].is_unique
     share = rated["emotion_type"].value_counts(normalize=True)
     assert share["shared"] == pytest.approx(0.5, abs=0.02)
+
+
+KEYWORDS = {"concept": ["hiya", "nahihiya", "utang na loob"], "exclude": ["suicidal", "self-harm"],
+            "domain": {"family": ["mama", "kapatid"], "romantic": ["jowa"], "friendship": ["barkada"],
+                       "work_school": ["boss"], "money": ["utang", "pera"]}}
+
+
+def silver_posts(texts):
+    return pd.DataFrame({"post_id": [f"p{i}" for i in range(len(texts))], "problem_goal": texts,
+                         "context": [""] * len(texts), "previous_attempts": [None] * len(texts)})
+
+
+def test_keyword_prescreen_whole_words_and_phrases():
+    out = keyword_prescreen(silver_posts(["Nahihiya ako sa mama ko", "hiyang sa gamot", "malaki ang Utang\nna loob ko",
+                                          "may utang siya"]), set(), KEYWORDS).set_index("post_id")
+    assert out.loc["p0", "concept_likely"] == "yes" and out.loc["p0", "notes"] == "nahihiya"
+    assert out.loc["p1", "concept_likely"] == "no"                  # hiyang is a different word
+    assert out.loc["p2", "concept_likely"] == "yes"                 # phrase across a line break
+    assert out.loc["p3", "concept_likely"] == "no"                  # bare utang is money, not a concept
+
+
+def test_keyword_prescreen_domain_rule_follows_codebook():
+    out = keyword_prescreen(silver_posts(["utang ng kapatid ko, pera", "jowa jowa at boss", "jowa at boss",
+                                          "pera lang", "wala"]), set(), KEYWORDS).set_index("post_id")
+    assert out["domain_guess"].tolist() == ["family", "romantic", "romantic", "money", "other"]
+
+
+def test_keyword_prescreen_crisis_exclusion_and_pilot_ids():
+    out = keyword_prescreen(silver_posts(["I feel suicidal", "self-harm noon", "okay lang"]), {"p2"}, KEYWORDS)
+    assert out["post_id"].tolist() == ["p0", "p1"]
+    assert (out["exclude_flag"] == "yes").all() and (out["exclude_reason"] == "self_harm_crisis").all()
+    assert out.equals(keyword_prescreen(silver_posts(["I feel suicidal", "self-harm noon", "okay lang"]), {"p2"}, KEYWORDS))
+
+
+def test_config_keyword_lists_are_valid():
+    keywords = load_config()["prescreen"]["keywords"]
+    assert keywords["concept"] and keywords["exclude"]
+    assert set(keywords["domain"]) == {"family", "romantic", "friendship", "work_school", "money"}

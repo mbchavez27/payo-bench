@@ -13,11 +13,49 @@ adjudicator = "ethan"  # fixed; never given a double-annotated post, so never on
 screener = "max"       # does the pre-screen (codebook §0)
 
 [prescreen]
-n = 900              # seeded random draw from silver (pilot posts excluded); ~30 s per post
+# "keywords" (default, v1.3): every silver post is tagged by the fixed word lists below, in code, with no
+# LLM and no human pass, so the model run can start right away. "manual": the screener's sheet
+# (`prescreen-sheet`, codebook §0), drawn from a random pool of n posts.
+method = "keywords"
+n = 900              # manual only: seeded random draw from silver (pilot posts excluded); ~30 s per post
+
+# Whole-word, case-insensitive; a space matches any whitespace. Matched terms are saved in prescreen.csv `notes`.
+[prescreen.keywords]
+# concept_likely = yes if any of these appear (codebook §4-§5 cues). Deliberately no bare "utang" (money).
+concept = ["hiya", "nahihiya", "nakakahiya", "mahiya", "napahiya", "hiyang-hiya",
+           "utang na loob", "tumanaw ng utang na loob",
+           "tampo", "nagtatampo", "magtampo", "nagtampo", "tampururot",
+           "sama ng loob", "masama ang loob", "masama loob", "hinanakit",
+           "pikon", "napikon", "pikunin", "asar talo",
+           "makisama", "pakikisama", "pakisama", "nakikisama", "kj", "killjoy",
+           "panganay", "breadwinner", "padala", "sustento", "ako lahat sumasalo",
+           "amor propio",
+           "bahala na", "ipagdasal",
+           "walang galang", "sumasagot", "bastos sa magulang", "magulang mo pa rin"]
+# exclude_flag = yes (reason self_harm_crisis). Annotators still apply the full §2 screen.
+exclude = ["suicide", "suicidal", "kill myself", "killing myself", "end my life", "magpakamatay",
+           "mamatay na lang", "ayoko nang mabuhay", "ayoko na mabuhay", "self-harm", "self harm", "laslas",
+           "naglaslas"]
+
+# domain_guess (codebook §7): the relationship domain with the most matches; money only if none; else other.
+[prescreen.keywords.domain]
+family = ["mama", "papa", "nanay", "tatay", "mommy", "daddy", "mom", "dad", "parents", "magulang",
+          "kapatid", "ate", "kuya", "bunso", "panganay", "tito", "tita", "lola", "lolo", "pinsan", "pamilya",
+          "family", "biyenan", "in-law", "in-laws", "sister", "brother", "anak"]
+romantic = ["bf", "gf", "boyfriend", "girlfriend", "jowa", "partner", "asawa", "husband", "wife", "mister",
+            "misis", "ex", "fiance", "fiancee", "dating", "nililigawan", "manliligaw", "crush", "kasal",
+            "relationship", "break up", "breakup", "cheating", "nag-cheat"]
+friendship = ["kaibigan", "friend", "friends", "bestfriend", "best friend", "bff", "barkada", "tropa",
+              "circle of friends"]
+work_school = ["work", "trabaho", "boss", "manager", "office", "officemate", "coworker", "co-worker",
+               "workmate", "company", "employer", "job", "resign", "school", "teacher", "prof", "professor",
+               "classmate", "groupmate", "thesis", "college", "university", "student"]
+money = ["utang", "pera", "money", "loan", "sweldo", "sahod", "salary", "ipon", "savings", "bayad", "debt",
+         "gcash", "budget", "credit card", "nangutang", "pautang"]
 
 [sample]
-n_target = 300             # posts wanted after annotation exclusions
-expected_retention = 0.90  # share kept at annotation; draw = ceil(n_target / expected_retention)
+n_target = 200             # posts wanted after annotation exclusions (300 → 200 in v1.3, to save time)
+expected_retention = 0.85  # share kept at annotation; draw = ceil(n_target / expected_retention) = 236
 concept_share = 0.67       # share drawn from concept_likely = yes; the rest is the low-culture control
 domain_floor = 10          # minimum posts per domain within each arm (if available)
 double_share = 0.25        # share of sampled posts labeled by two annotators (codebook §8)
@@ -36,7 +74,7 @@ fear = "worry"
 pakikisama_strain = ""
 
 [rating]
-n_eval = 80          # analysis plan §1.1
+n_eval = 60          # analysis plan §1.1 (80 → 60 in v1.3; the floor for inferential H4)
 double_share = 0.25  # share of rated posts rated by a second author
 
 [analysis]

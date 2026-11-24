@@ -29,7 +29,7 @@ EMOTION_WEIGHTS = {"hiya": .10, "tampo": .06, "sama_ng_loob": .08, "pikon": .02,
 DOMAINS = ("family", "romantic", "friendship", "work_school", "money", "other")
 CONCEPTS = ("utang_na_loob", "hiya", "pakikisama", "amor_propio", "family_obligation", "respect_for_elders",
             "bahala_na")
-WORDS = "ang kasi po talaga yung family ko sobrang hirap help please work pera bahay mama papa".split()
+WORDS = "ang kasi po talaga yung ko sobrang hirap help please bahay lang naman siya ngayon".split()  # no keyword hits
 
 
 def fake_silver(n: int, rng: np.random.Generator) -> pd.DataFrame:
@@ -67,6 +67,26 @@ def truth_table(ids: list[str], rng: np.random.Generator) -> pd.DataFrame:
     return pd.DataFrame(rows).set_index("post_id")
 
 
+def add_keyword_cues(silver: pd.DataFrame, truth: pd.DataFrame, keywords: dict,
+                     rng: np.random.Generator) -> pd.DataFrame:
+    """Append keyword cues that mostly agree with the truth, so the keyword pre-screen is useful but noisy."""
+    silver = silver.copy()
+    for i, pid in enumerate(silver["post_id"]):
+        t, cues = truth.loc[pid], []
+        if t["exclude_flag"] == "yes":
+            if t["exclude_reason"] == "self_harm_crisis" and rng.random() < .7:
+                cues.append(keywords["exclude"][0])
+        else:
+            has_concept = t["cultural_concept"] not in ("", "none")
+            if rng.random() < (.8 if has_concept else .1):
+                cues.append(rng.choice(keywords["concept"]))
+            if t["domain"] in keywords["domain"] and rng.random() < .8:
+                cues.append(keywords["domain"][t["domain"]][0])
+        if cues:
+            silver.loc[silver.index[i], "context"] += " " + " ".join(cues)
+    return silver
+
+
 def fill_sheet(path: Path, fill: Callable[[dict], dict]) -> None:
     """Write values into a sheet's input columns, the way a person would."""
     book = load_workbook(path)
@@ -97,19 +117,6 @@ def annotate(truth: pd.DataFrame, rng: np.random.Generator, agreement: float = .
 def adjudicate_fill(truth: pd.DataFrame) -> Callable[[dict], dict]:
     """The adjudicator restores the truth on every field."""
     return lambda row: {f"final_{k}": v for k, v in truth.loc[row["post_id"]].to_dict().items()}
-
-
-def prescreen_fill(truth: pd.DataFrame, rng: np.random.Generator) -> Callable[[dict], dict]:
-    """A quick screener: mostly right on exclusion and domain, noisy on concept_likely."""
-    def fill(row: dict) -> dict:
-        t = truth.loc[row["post_id"]]
-        if t["exclude_flag"] == "yes" and rng.random() < .7:
-            return {"exclude_flag": "yes", "exclude_reason": t["exclude_reason"]}
-        concept = t["cultural_concept"] not in ("", "none")
-        likely = concept if rng.random() < .8 else not concept
-        domain = t["domain"] if t["domain"] and rng.random() < .8 else rng.choice(DOMAINS)
-        return {"exclude_flag": "no", "concept_likely": "yes" if likely else "no", "domain_guess": domain}
-    return fill
 
 
 def write_model_outputs(gold: Path, sample: pd.DataFrame, truth: pd.DataFrame, rng: np.random.Generator) -> dict:
@@ -232,15 +239,16 @@ def smoke(folder: Path | None, run_notebooks: Callable[[Path], None] | None = No
         os.environ[key] = str(value)
     rng = np.random.default_rng(SEED)
     silver = fake_silver(700, rng)
-    silver.to_parquet(env["PAYO_SILVER_PATH"], index=False)
     synthetic_config(env["PAYO_EVAL_CONFIG"])
-    (base / "pilot").mkdir()
-    silver[["post_id"]].iloc[:20].to_csv(env["PAYO_PILOT_POSTS"], index=False)
     truth = truth_table(silver["post_id"].tolist(), rng)
     paths, cfg = get_paths(), load_config()
+    silver = add_keyword_cues(silver, truth, cfg["prescreen"]["keywords"], rng)
+    silver.to_parquet(env["PAYO_SILVER_PATH"], index=False)
+    (base / "pilot").mkdir()
+    silver[["post_id"]].iloc[:20].to_csv(env["PAYO_PILOT_POSTS"], index=False)
     people = cfg["roster"]["annotators"]
 
-    print("== pilot")
+    print("== optional pilot (not used in v1.3; kept working)")
     steps.pilot_sheets()
     for person in people:
         fill_sheet(paths.sheet("pilot", person), annotate(truth, rng))
@@ -249,9 +257,7 @@ def smoke(folder: Path | None, run_notebooks: Callable[[Path], None] | None = No
         fill_sheet(paths.sheet("pilot", "adjudication"), adjudicate_fill(truth))
     steps.pilot_adjudicate()
 
-    print("== pre-screen and sample")
-    steps.prescreen_sheet()
-    fill_sheet(paths.sheet("prescreen", cfg["roster"]["screener"]), prescreen_fill(truth, rng))
+    print("== keyword pre-screen and sample")
     steps.sample()
     for person in people:
         fill_sheet(paths.sheet("annotation", person), annotate(truth, rng))

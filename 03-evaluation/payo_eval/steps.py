@@ -20,7 +20,8 @@ from payo_eval.instruments import (LABEL_FIELDS, adjudication_columns, annotatio
                                    check_exclusion_reasons, post_text, prescreen_columns, rating_columns)
 from payo_eval.paths import Paths, get_paths, load_config, roster
 from payo_eval.rating import bestfit_key, build_items, collect_ratings, rater_frames
-from payo_eval.sampling import assign, draw_prescreen_pool, n_to_draw, rated_set, stratified_sample
+from payo_eval.sampling import (assign, draw_prescreen_pool, keyword_prescreen, n_to_draw, rated_set,
+                                stratified_sample)
 from payo_eval.sheets import normalize, read_sheet, validate, write_sheet
 from payo_eval.report import finalization_report
 
@@ -122,8 +123,11 @@ def _decisions(path, raw: pd.DataFrame, schema) -> pd.DataFrame | None:
 # ---------------------------------------------------------------- A. pre-screen
 
 def prescreen_sheet(force: bool = False) -> None:
-    """Draw the pre-screen pool (pilot posts excluded) and write the screener's sheet."""
+    """Draw the pre-screen pool (pilot posts excluded) and write the screener's sheet (manual method only)."""
     paths, cfg, schema, silver = _context()
+    if _prescreen_method(cfg) == "keywords":
+        raise SystemExit('[prescreen] method = "keywords": no sheet is needed, run `sample` directly. '
+                         'Set method = "manual" in config.toml to pre-screen by hand.')
     exclude = set(read_post_ids(paths.pilot_posts)) if paths.pilot_posts.exists() else set()
     ids = draw_prescreen_pool(silver["post_id"].tolist(), exclude, cfg["prescreen"]["n"], cfg["seed"])
     screener = cfg["roster"].get("screener") or "screener"
@@ -135,18 +139,34 @@ def prescreen_sheet(force: bool = False) -> None:
 
 # ---------------------------------------------------------------- B. sample + annotation sheets
 
-def sample(force: bool = False) -> None:
-    """Stratified sample from the filled pre-screen, the annotator assignment, and their sheets."""
-    paths, cfg, schema, silver = _context()
-    _refuse_if_exists(paths.sample, paths.assignment, force=force)
+def _prescreen_method(cfg: dict) -> str:
+    method = cfg["prescreen"].get("method", "manual")
+    if method not in ("keywords", "manual"):
+        raise SystemExit(f'[prescreen] method must be "keywords" or "manual", not {method!r}.')
+    return method
+
+
+def _screened(paths: Paths, cfg: dict, schema, silver: pd.DataFrame) -> pd.DataFrame:
+    """The pre-screen table: keyword-tagged in code, or read back from the screener's sheet."""
+    if _prescreen_method(cfg) == "keywords":
+        exclude = set(read_post_ids(paths.pilot_posts)) if paths.pilot_posts.exists() else set()
+        return keyword_prescreen(silver.reset_index(drop=True), exclude,
+                                 cfg["prescreen"]["keywords"]).assign(screener="keywords")
     screener = cfg["roster"].get("screener") or "screener"
     sheet = read_sheet(paths.sheet("prescreen", screener))
     columns = prescreen_columns(schema)
     problems = validate(sheet, columns, "post_id", "prescreen") or check_exclusion_reasons(sheet, "post_id", "prescreen")
     if problems:
         raise SystemExit("Pre-screen sheet has problems:\n  " + "\n  ".join(problems))
-    screened = normalize(sheet, columns)[["post_id", "exclude_flag", "exclude_reason", "concept_likely",
-                                          "domain_guess", "notes"]].assign(screener=screener)
+    return normalize(sheet, columns)[["post_id", "exclude_flag", "exclude_reason", "concept_likely",
+                                      "domain_guess", "notes"]].assign(screener=screener)
+
+
+def sample(force: bool = False) -> None:
+    """Stratified sample from the pre-screen (keywords or the screener's sheet), the assignment, and the sheets."""
+    paths, cfg, schema, silver = _context()
+    _refuse_if_exists(paths.sample, paths.assignment, force=force)
+    screened = _screened(paths, cfg, schema, silver)
     _write_csv(screened, paths.prescreen)
 
     s = cfg["sample"]
@@ -171,7 +191,10 @@ def sample(force: bool = False) -> None:
     print(drawn.groupby(["arm", "domain_guess"]).size().rename("posts").to_string())
     print(f"\nWrote {paths.sample} ({len(drawn)} posts), {paths.assignment} "
           f"({int((plan['slot'] == 2).sum())} double-annotated), and one sheet per annotator in {paths.work / 'annotation'}.\n"
-          "Next: annotate (codebook §1-§7), then run `adjudication-sheet`.")
+          "Next, in either order (RUNBOOK §2):\n"
+          "  - GPU run 1: run.py --profile full --task recognition,advice-p0 --model both. Nobody opens the outputs\n"
+          "    until `finalize-labels` has run.\n"
+          "  - Annotate blind (codebook §1-§7), then run `adjudication-sheet`.")
 
 
 # ---------------------------------------------------------------- C. adjudication
@@ -212,7 +235,7 @@ def finalize_labels(accept_kappa: bool = False) -> None:
     _write_csv(result.labels[cols], paths.adjudicated)
     (paths.er / "merges.json").write_text(json.dumps(result.merges, indent=2) + "\n", encoding="utf-8")
     print(f"\nWrote {paths.adjudicated} and merges.json.\n"
-          "Next: the full run on the GPU (02-llm/scripts/README.md), then `rating-sheets`.")
+          "Next: GPU run 2: run.py --profile full --task advice-oracle --model both, then `rating-sheets`.")
 
 
 # ---------------------------------------------------------------- E. rating sheets
@@ -285,16 +308,20 @@ def collect_rating_sheets() -> None:
 def status() -> None:
     """Print which artifacts exist and the next step."""
     paths = get_paths()
+    cfg = load_config(paths)
+    manual = _prescreen_method(cfg) == "manual"
     steps: list[tuple[str, Callable[[], bool], str]] = [
-        ("pilot labels", lambda: (paths.pilot_dir / "pilot_annotations.csv").exists()
-         and pd.read_csv(paths.pilot_dir / "pilot_annotations.csv", dtype=str)["primary_emotion"].notna().any(),
-         "pilot-sheets → annotate → pilot-merge → pilot-adjudicate"),
-        ("pre-screen sheet", lambda: any((paths.work / "prescreen").glob("*.xlsx")), "prescreen-sheet"),
-        ("sample + annotation sheets", lambda: paths.sample.exists(), "pre-screen, then sample"),
-        ("collected annotations", lambda: paths.annotations_raw.exists(), "annotate, then adjudication-sheet"),
+        *([("pre-screen sheet", lambda: any((paths.work / "prescreen").glob("*.xlsx")), "prescreen-sheet")]
+          if manual else []),
+        ("sample + annotation sheets", lambda: paths.sample.exists(),
+         "pre-screen, then sample" if manual else "sample (keyword pre-screen)"),
+        ("GPU run 1: recognition + P0", lambda: any((paths.gold / "advice-generation").glob("replies_*_p0.jsonl"))
+         and any((paths.gold / "emotion-recognition").glob("predictions_*.jsonl")),
+         "run.py --profile full --task recognition,advice-p0 --model both (or annotate first)"),
+        ("collected annotations", lambda: paths.annotations_raw.exists(), "annotate blind, then adjudication-sheet"),
         ("gold labels", lambda: paths.adjudicated.exists(), "adjudicate, then finalize-labels"),
-        ("full run outputs", lambda: any((paths.gold / "advice-generation").glob("replies_*_oracle.jsonl")),
-         "run.py --profile full (02-llm/scripts/README.md)"),
+        ("GPU run 2: P-Oracle", lambda: any((paths.gold / "advice-generation").glob("replies_*_oracle.jsonl")),
+         "run.py --profile full --task advice-oracle --model both"),
         ("rating sheets", lambda: paths.items_key.exists(), "rating-sheets"),
         ("ratings", lambda: paths.ratings.exists(), "rate, then collect-ratings"),
     ]
