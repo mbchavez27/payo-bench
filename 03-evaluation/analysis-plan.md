@@ -12,8 +12,8 @@ Study framing: diagnostic and exploratory (modest N). Effect sizes with 95% CIs 
 
 | Symbol | Meaning |
 | --- | --- |
-| post *i* | one annotated, non-excluded post (target ≈ 300) |
-| rated set | `N_eval` = **80** posts drawn from the annotated set for author rating (decided 2026-11-18; §1.1) |
+| post *i* | one annotated, non-excluded post (target ≈ 200 since v1.3; was 300) |
+| rated set | `N_eval` = **60** posts drawn from the annotated set for author rating (80 until v1.3; §1.1) |
 | model *m* | `gemma` (google/gemma-3-4b-it) or `sealion` (aisingapore/Gemma-SEA-LION-v4-4B-VL) |
 | source *s* | `community`, `gemma`, `sealion` |
 | condition *c* | `P0`, `P-Oracle` (LLM replies only) |
@@ -26,7 +26,7 @@ Gold labels are the **adjudicated** annotations (codebook §8). Posts labeled `n
 
 ### 1.1 Rated set
 
-- **Size:** `N_eval` posts, stratified by `emotion_type` × `domain`. Each post has 5 replies: community, Gemma-P0, SEA-LION-P0, Gemma-Oracle and SEA-LION-Oracle, so 5 × `N_eval` items (400 at the default).
+- **Size:** `N_eval` posts, stratified by `emotion_type` × `domain`. Each post has 5 replies: community, Gemma-P0, SEA-LION-P0, Gemma-Oracle and SEA-LION-Oracle, so 5 × `N_eval` items (300 at the default).
 - **Double rating:** about 25% of items are rated by a second author, for §9 R3. Each item's primary rating is from one author; in a double-rated item, both ratings enter the models, with rater as a random effect.
 - **Workload:** `N_eval` is the main lever if time is short. Below about 60 posts, the H4 analyses (§6) should be reported as descriptive only.
 - **Drawn in code:** `00-sampling.ipynb` selects the rated set, the double-rated items and the blinded `item_id` key, with `SEED = 42`.
@@ -37,14 +37,14 @@ Done after annotation and **before** looking at any model output.
 
 1. **Merge rule.** Any emotion label with fewer than 15 adjudicated posts is merged into its nearest label. Proposed merges: `pikon` → `anger`; `tampo` → `sama_ng_loob` (as "relational hurt"); `pakikisama_strain` → `hiya` or `burnout` (decided at adjudication); `fear` → `worry`. A merge keeps the target label's `emotion_type`. Report the counts before and after merging.
 2. **Agreement gate.** A label whose one-vs-rest κ is below 0.40 on the double-annotated subset (§9 R1) is revised and re-adjudicated, or merged. Report κ before and after.
-3. **Pre-screen selection bias.** The manual pre-screen (codebook §0) is used only for sampling. Report:
+3. **Pre-screen selection bias.** The pre-screen (codebook §0) is used only for sampling. Since v1.3 it is the fixed keyword tagger (`config.toml [prescreen.keywords]`), not a person. Report:
    - the share of annotated posts with `cultural_concept ≠ none`, split by pre-screen `concept_likely` = `yes` / `no`;
    - the pre-screen's sensitivity and specificity against the gold concept label;
    - agreement between `domain_guess` and the gold domain.
 
 ## 3. RQ1: emotion recognition (H1a, H1b, H3a)
 
-**Data:** 600 Task A outputs (≈300 posts × 2 models). Ratings are not needed.
+**Data:** ≈400 Task A outputs (≈200 posts × 2 models). Ratings are not needed. Because the keyword pre-screen favors posts that name a concept outright (v1.3), the by-`expression` breakdown below is also read as a check on that bias.
 
 **Descriptives, per model:**
 - accuracy, macro-F1, and per-class precision, recall and F1 for the emotion label;
@@ -168,7 +168,7 @@ If it does not run, report this as a construct limitation: the ratings come from
 
 | Symbol | Used in | Value | Rationale |
 | --- | --- | --- | --- |
-| Δ | H2a non-inferiority (helpfulness) | 0.5 points on the 1–5 scale | A difference smaller than half a rating step is treated as practically negligible. With 80 posts the 95% CI half-width is about ±0.2 points, so this margin is testable. |
+| Δ | H2a non-inferiority (helpfulness) | 0.5 points on the 1–5 scale | A difference smaller than half a rating step is treated as practically negligible. With 60 posts (v1.3) the 95% CI half-width is about ±0.25 points (±0.2 at the original 80), so this margin is still testable. |
 | Δ_esc | H3b safe-escalation equivalence | 10 percentage points | A gap under 10 points in missed escalations is treated as no practical difference. Likely unused: if fewer than 20 posts need escalation, H3b escalation is descriptive (§5). |
 | Δ_oracle | H4b "substantial" improvement | 0.5 points on the 1–5 scale | Same reasoning as Δ. A smaller but real gain is read as "Oracle improves advice little" (response bottleneck), as intended by the interpretation table in §6.2. |
 
@@ -203,13 +203,19 @@ Holm correction is applied **within each family**. Descriptive, subgroup and sen
 | v1 | 2026-11-18 | Frozen. `N_eval` = 80; margins fixed (§8); Python-only tooling (§12): linear mixed models for ratings with rater as a fixed effect, GEE for the logistic model in §3. |
 | v1.1 | 2026-11-23 | After the 30-post pilot (health checks only, no accuracy viewed): calibration marked descriptive only (§3), because confidence was near-constant; length sensitivity analysis added for H2a (§4.1), because community replies were about 4× shorter. Concept metrics use the fixed alias map, and the strict version is reported alongside (§3), because the models put emotion ids (`pakikisama_strain`, `utang_na_loob_guilt`) in the concept field even under prompt v2. Run changes outside this file: Task A prompt v2, the `concept_aliases` parsing rule in the schema, and `max_new_tokens.advice` raised from 320 to 400. |
 | v1.2 | 2026-11-23 | Implementation decisions made while writing the code (`03-evaluation/payo_eval/`), before annotation: (1) merges (§2) are applied at **scoring time** to gold and predictions alike, from `config.toml [merges]`; prompts, schema and the adjudicated labels (the P-Oracle input) keep the original label. (2) R4's advice strategy-change share is dropped (it needed about 360 extra hand-coded replies); R4 keeps Task A stability and adds reply-length spread. (3) With more than two annotators or raters, κ pools first vs. second coder across pairs. (4) The rated set is allocated proportionally across `emotion_type` × `domain` cells (largest remainder). (5) Whole posts go to raters, so a double-rated post is double-rated on all 5 items; raters avoid posts they annotated or adjudicated where the roster allows, and conflicts are recorded. (6) The reader survey (§7) does not run; the authors' ratings are reported with the construct limitation stated in §7. |
+| v1.3 | 2026-11-24 | Changes to save team time, made before any sampling, annotation or model run on study posts: (1) **No shared pilot annotation.** The codebook (v1) is used as frozen; the 25% double annotation and the κ gate (§2) are the only agreement check, and they come after annotation. (2) **Keyword pre-screen.** The manual pre-screen is replaced by fixed word lists applied in code (`config.toml [prescreen.keywords]`; no LLM, no person): `concept_likely` from concept cue words, `domain_guess` by the codebook §7 rule, and crisis terms excluded. Annotators still apply the full exclusion screen. Its selection bias is reported as in §2 step 3. (3) **Smaller sizes:** target 200 posts (draw 236 at 0.85 retention, since exclusions now happen almost only at annotation) and `N_eval` = 60, the floor in §1.1 for inferential H4. (4) **Order:** Task A and P0 advice run on the sampled posts before annotation; the outputs stay unopened and uncommitted until `finalize-labels` has frozen the labels, so annotation stays blind. P-Oracle runs after, since it needs the gold labels. |
 
 ## Threats specific to author rating
 
 - **Raters know the label set and set the gold emotions.** Mitigations: blinded `item_id`, shuffled order, P0 and Oracle mixed together, raters skip posts they annotated where possible, and R3 α is reported.
 - **Authors are not lay readers.** The survey (§7) does not run (v1.2), so this is reported as a construct limitation.
 - **Best-fit candidates reveal the condition split.** The best-fit sheet lists only the three P0-level replies, so a rater can tell that the other two replies of a post were P-Oracle LLM replies. The ratings are made first, on the rating sheet, where all five replies are mixed.
-- **The rated set is smaller than the full run** (`N_eval` vs. ≈300), so H2–H4 have less power than RQ1. Report this alongside the effect sizes.
+- **The rated set is smaller than the full run** (`N_eval` = 60 vs. ≈200), so H2–H4 have less power than RQ1. Report this alongside the effect sizes.
+
+## Threats from the v1.3 shortcuts
+
+- **The keyword pre-screen over-represents explicit posts.** Posts that name a cultural concept outright are more likely to enter the culture arm. Report recognition by `expression`, and the pre-screen's sensitivity and specificity (§2 step 3).
+- **No pilot calibration.** Unclear codebook rules surface only at the κ gate. A label that fails is revised and re-adjudicated or merged (§2), and this is reported.
 
 ## 12. Tooling (decided: Python only)
 

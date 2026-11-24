@@ -1,6 +1,6 @@
 # 03-evaluation: gold → results
 
-All statistics are computed here, in code, from the frozen files in `02-llm/gold/`. LLMs run only the two study tasks. The authors pre-screen, annotate, rate and code strategies. No test result comes from an LLM. The order of work is in [`../RUNBOOK.md`](../RUNBOOK.md).
+All statistics are computed here, in code, from the frozen files in `02-llm/gold/`. LLMs run only the two study tasks. The pre-screen is a fixed keyword tagger in code; the authors annotate, adjudicate and rate. No test result comes from an LLM. The order of work is in [`../RUNBOOK.md`](../RUNBOOK.md).
 
 - [`analysis-plan.md`](analysis-plan.md): every metric, test and model, mapped to RQ1–RQ3 and H1a–H4b (v1.2).
 - [`config.toml`](config.toml): roster, sample sizes, thresholds, merge map, margins.
@@ -13,7 +13,7 @@ All statistics are computed here, in code, from the frozen files in `02-llm/gold
 | --- | --- |
 | `paths` | every file location (overridable with `PAYO_*` variables), config loading |
 | `sheets`, `instruments` | Excel sheets with dropdowns; column rules from the schema and rubric; strict read-back |
-| `sampling` | pre-screen pool, stratified sample, balanced assignment with overlap, rated set |
+| `sampling` | keyword pre-screen (or a manual pre-screen pool), stratified sample, balanced assignment with overlap, rated set |
 | `annotation`, `report` | collect, disagreements, adjudication, merges, κ gate, finalization report |
 | `rating` | blinded items and key, community-reply cleaning, rater sheets, rating collection |
 | `load` | analysis-ready tables from gold (merges applied to gold and predictions) |

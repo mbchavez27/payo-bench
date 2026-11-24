@@ -16,7 +16,7 @@ There are two profiles:
 | Backend | Ollama (vLLM doesn't run on macOS) | vLLM |
 | Weights | GGUF Q8_0 (`config.toml` → `ollama_tag`) | HF weights at a pinned revision (`hf_id`, `hf_revision`) |
 | Precision | Q8_0 | `auto`: bf16 if VRAM ≥ 11 GB, else FP8 weight-only |
-| Posts | 30 (`02-llm/pilot/pilot_posts.csv`) | the ~300 sample (`02-llm/gold/sample_posts.csv`) |
+| Posts | 30 (`02-llm/pilot/pilot_posts.csv`) | the ~236-post sample (`02-llm/gold/sample_posts.csv`) |
 | Output | `02-llm/pilot/outputs/` (local only) | `02-llm/gold/` + `MANIFEST.json` |
 
 **The pilot is not a result.** Its backend and quantization differ from the full run. Use it to check prompts, parsing, invalid-output rates, reply length, timing and label balance. Never analyze its outputs as findings.
@@ -82,7 +82,7 @@ uv run python 02-llm/scripts/run.py --profile full --task all --model both --var
   - `auto` picks the precision once and uses it for both models.
   - If FP8 fails to load on your card, rerun with `--precision bnb4`, the bitsandbytes 4-bit fallback.
   - Whatever you choose, use the same value for every full-run command, and record it.
-- **`sample_posts.csv`:** this comes from `03-evaluation/00-sampling.ipynb`, the stratified ~300 posts with the pilot ids excluded. Until that exists, pass `--posts <csv>`.
+- **`sample_posts.csv`:** this comes from `03-evaluation/workflow.py sample`, the stratified ~236 posts with the pilot ids excluded. Recognition and P0 advice need only this file, so they can run before annotation (keep the outputs unopened until `finalize-labels`). P-Oracle needs `annotations_adjudicated.csv` too.
 
 ## Behavior shared by both profiles
 

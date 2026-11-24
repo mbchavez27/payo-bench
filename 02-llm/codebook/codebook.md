@@ -8,7 +8,9 @@ The one-line definitions and all label ids live in [`../gold/emotion-recognition
 
 ## 0. Pre-screen (before sampling)
 
-Before the ~300 posts are sampled, one author does a quick pass over a seeded random pool of silver posts (900 by default, `03-evaluation/config.toml [prescreen] n`; pilot posts excluded; about 30 seconds per post) in the sheet made by `workflow.py prescreen-sheet` (columns as in [`prescreen-template.csv`](prescreen-template.csv)):
+**Since v1.1 (analysis plan v1.3) this is done in code.** `workflow.py sample` tags every silver post with the fixed word lists in `03-evaluation/config.toml [prescreen.keywords]`, using no LLM and no person: `concept_likely` = `yes` if a concept cue word appears, `domain_guess` by the §7 rule (the relationship with the most cue words; `money` only if no relationship is mentioned), and `exclude_flag` = `yes` for crisis terms. The matched words are saved in `prescreen.csv`. The manual pass below is still supported (`[prescreen] method = "manual"`).
+
+Manual alternative: before the posts are sampled, one author does a quick pass over a seeded random pool of silver posts (900 by default, `03-evaluation/config.toml [prescreen] n`; pilot posts excluded; about 30 seconds per post) in the sheet made by `workflow.py prescreen-sheet` (columns as in [`prescreen-template.csv`](prescreen-template.csv)):
 
 | Field            | Values                                                             |
 | ---------------- | ------------------------------------------------------------------ |
@@ -175,11 +177,11 @@ This refers to the label you chose. If the poster writes "naiinis ako" but you l
 
 ## 8. Annotation process
 
-1. **Pilot (30 posts).** All annotators label the same 30 posts independently, then discuss every disagreement. Revise this codebook and log the changes in §10. Pilot posts are not part of the final set.
-2. **Main pass.** Each post gets one annotator. **At least 25%** (≈75 of 300) are double-annotated, chosen at random (`SEED` logged) and not revealed to annotators.
+1. **Pilot (30 posts), skipped in v1.1.** The plan was for all annotators to label the same 30 posts independently, then discuss every disagreement. To save time it was skipped (analysis plan v1.3): the codebook is used as frozen, and the double-annotated subset (step 3) is the agreement check. Pilot posts are still excluded from the sample.
+2. **Main pass.** Each post gets one annotator. **At least 25%** (≈59 of 236) are double-annotated, chosen at random (`SEED` logged) and not revealed to annotators.
 3. **Agreement.** Computed on the double-annotated subset. The statistics and the κ gate for revising or merging a label are in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md) (§2, §9 R1).
 4. **Adjudication.** A third team member resolves the double-annotated disagreements, and the adjudicated label is final. One fixed adjudicator (`config.toml [roster] adjudicator`) does all of them; the sampling step never gives them a double-annotated post, so they are never one of the pair. These final labels are also the **gold emotion** used in the P-Oracle condition.
-5. **Blindness.** Labeling is finished and frozen before any model output is viewed.
+5. **Blindness.** The models may run on the sampled posts before or during annotation, but nobody opens their output until labeling is finished and frozen (`finalize-labels`).
 
 ## 9. Merging rare labels
 
@@ -191,6 +193,7 @@ Rare labels are merged after adjudication and before any model output is viewed.
 | -------- | ---------- | ------------- |
 | v1-draft | 2026-11-18 | First draft.  |
 | v1       | 2026-11-24 | Sources verified by the team ([`source-verification.md`](source-verification.md)); references added (§11). Definitions revised for `pikon` and `pakikisama_strain` (emotions) and `hiya` (concept), in `label-schema.json` too. The pilot model run used the v1-draft wording; pilot outputs are not part of the study. |
+| v1.1     | 2026-11-24 | Process only, no definition changed: keyword pre-screen in code (§0), shared pilot skipped (§8.1), models may run before annotation but stay unopened (§8.5). See analysis plan v1.3. |
 
 ## 11. References
 
