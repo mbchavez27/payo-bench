@@ -1,6 +1,6 @@
 # Advice-strategy codebook (drift, H2b)
 
-**Version:** v1-draft
+**Version:** v1 (frozen 2026-11-24)
 
 Each reply in the rated set (community, Gemma, SEA-LION; P0 and P-Oracle) gets **one** code for its **dominant strategy**. The **authors** code it in the `strategy` column of [`rating-template.csv`](rating-template.csv), at the same time as rating. No LLM is used. The ~25% of items that are double-rated are also double-coded, for the agreement check (Cohen's κ).
 

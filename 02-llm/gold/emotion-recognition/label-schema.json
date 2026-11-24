@@ -1,6 +1,6 @@
 {
-  "version": "v1-draft",
-  "status": "draft: definitions and sources not yet verified against the RRL; freeze before the pilot annotation",
+  "version": "v1",
+  "status": "frozen 2026-11-24: sources verified (codebook §11, source-verification.md); changes bump the version",
   "codebook": "02-llm/codebook/codebook.md",
   "reply_language": "Taglish (natural Filipino-English code-switching, the way Filipinos write to each other online)",
   "emotions": [
@@ -26,7 +26,7 @@
       "id": "pikon",
       "name": "Pikon",
       "type": "culture_bound",
-      "definition": "Being provoked and losing composure over teasing, jokes, or small slights, and feeling bad or judged for having reacted."
+      "definition": "Irritability or loss of composure triggered by teasing, banter, or minor slights, often accompanied by self-consciousness or social stigma for failing to take a joke."
     },
     {
       "id": "utang_na_loob_guilt",
@@ -38,7 +38,7 @@
       "id": "pakikisama_strain",
       "name": "Pakikisama strain",
       "type": "culture_bound",
-      "definition": "Strain from going along with a group or person to keep the peace, against one's own wishes, values, or limits."
+      "definition": "Psychological distress or exhaustion resulting from yielding to group or interpersonal expectations to maintain smooth interpersonal relations (pakikisama) at the expense of one's own wishes, values, or boundaries."
     },
     {
       "id": "worry",
@@ -97,7 +97,7 @@
     {
       "id": "hiya",
       "name": "Hiya (as a social norm)",
-      "definition": "The norm of avoiding shame and keeping face, including worry about what other people will say."
+      "definition": "Social norm of propriety and avoiding shame or loss of face in front of others."
     },
     {
       "id": "pakikisama",

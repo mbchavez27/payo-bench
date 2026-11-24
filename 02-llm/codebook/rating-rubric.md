@@ -1,6 +1,6 @@
 # Rating rubric: author ratings of advice (RQ2, RQ3, H4)
 
-**Version:** v1-draft · **Lock before the final generation run.** After locking, any change bumps the version.
+**Version:** v1 (frozen 2026-11-24) · **Lock before the final generation run.** After locking, any change bumps the version.
 
 The **authors** rate every reply in the rated set with this rubric, using [`rating-template.csv`](rating-template.csv). No LLM judge is used. LLMs run only the two study tasks (emotion recognition and advice generation). How the ratings are analyzed is in [`03-evaluation/analysis-plan.md`](../../03-evaluation/analysis-plan.md).
 
