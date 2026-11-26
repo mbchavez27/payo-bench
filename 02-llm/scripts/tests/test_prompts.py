@@ -22,7 +22,7 @@ def schema():
 @pytest.mark.parametrize("task", list(PROMPT_FILES))
 def test_every_prompt_renders_without_leftover_placeholders(task, schema):
     template = load_prompt(PROMPT_DIR / PROMPT_FILES[task])
-    gold = {POST.post_id: GoldLabel("utang_na_loob_guilt", "family_obligation")}
+    gold = {POST.post_id: GoldLabel("konsensya", "family_obligation")}
     jobs, skipped = build_jobs(task, [POST], schema, template, gold)
     assert skipped == 0
     assert "{{" not in jobs[0].prompt

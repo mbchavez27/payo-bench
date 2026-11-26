@@ -24,7 +24,8 @@ Each file has YAML front-matter (`task`, `version`, `placeholders`, `output_form
 | File                        | Task                                         | Runs on         |
 | --------------------------- | -------------------------------------------- | --------------- |
 | `emotion-recognition_v1.md` | Task A: emotion + cultural concept + confidence (pilot only; superseded) | Gemma, SEA-LION |
-| `emotion-recognition_v2.md` | Task A, as v1 plus a rule keeping emotion ids out of the concept field (pilot 2026-11-23) | Gemma, SEA-LION |
+| `emotion-recognition_v2.md` | Task A, as v1 plus concept parsing rule (pilot 2026-11-23; superseded) | Gemma, SEA-LION |
+| `emotion-recognition_v3.md` | Task A, schema v2 (konsensya added, pakikisama_strain retired) | Gemma, SEA-LION |
 | `advice-p0_v1.md`           | Task B, baseline: post only (~150w, pilot only; superseded) | Gemma, SEA-LION |
 | `advice-p0_v2.md`           | Task B, baseline: post only (calibrated to ~90 words, max 110) | Gemma, SEA-LION |
 | `advice-oracle_v1.md`       | Task B, oracle: post + gold emotion and concept (~150w; superseded) | Gemma, SEA-LION |

@@ -1,8 +1,16 @@
 {
-  "version": "v1",
-  "status": "frozen 2026-11-24: sources verified (codebook §11, source-verification.md); changes bump the version",
+  "version": "v2",
+  "status": "draft: supersedes v1 (frozen 2026-11-24). Needs codebook update, source re-verification, and a re-check of pilot labels before freezing.",
   "codebook": "02-llm/codebook/codebook.md",
   "reply_language": "Taglish (natural Filipino-English code-switching, the way Filipinos write to each other online)",
+  "changes_from_v1": [
+    "utang_na_loob_guilt replaced by konsensya (shared). The cultural pressure is captured in cultural_concepts (utang_na_loob).",
+    "pakikisama_strain removed as redundant with hiya, sama_ng_loob, and burnout, plus pakikisama in cultural_concepts.",
+    "concept_aliases removed (obsolete). Replaced by legacy_id_map for migrating v1 and pilot labels.",
+    "family_obligation and respect_for_elders now carry native terms (pananagutan sa pamilya, paggalang). Ids unchanged.",
+    "sadness definition narrowed so it no longer overlaps tampo and sama_ng_loob.",
+    "native_term added to shared emotions."
+  ],
   "emotions": [
     {
       "id": "hiya",
@@ -29,51 +37,52 @@
       "definition": "Irritability or loss of composure triggered by teasing, banter, or minor slights, often accompanied by self-consciousness or social stigma for failing to take a joke."
     },
     {
-      "id": "utang_na_loob_guilt",
-      "name": "Utang-na-loob guilt",
-      "type": "culture_bound",
-      "definition": "Guilt or pressure from a debt of gratitude: feeling unable to refuse, or obliged to repay, someone (often family) who helped or raised them."
-    },
-    {
-      "id": "pakikisama_strain",
-      "name": "Pakikisama strain",
-      "type": "culture_bound",
-      "definition": "Psychological distress or exhaustion resulting from yielding to group or interpersonal expectations to maintain smooth interpersonal relations (pakikisama) at the expense of one's own wishes, values, or boundaries."
+      "id": "konsensya",
+      "name": "Konsensya",
+      "type": "shared",
+      "native_term": "konsensya",
+      "definition": "Guilt or a troubled conscience over something one did, failed to do, or feels unable to repay."
     },
     {
       "id": "worry",
       "name": "Worry",
       "type": "shared",
+      "native_term": "pag-aalala",
       "definition": "Anxious, repeated thinking about what might go wrong in an uncertain situation."
     },
     {
       "id": "sadness",
       "name": "Sadness",
       "type": "shared",
-      "definition": "Feeling down, hurt, or grieving after a loss, rejection, or disappointment."
+      "native_term": "lungkot",
+      "definition": "Low mood or grief after a loss or disappointment, where no particular close person is being blamed or sulked at."
     },
     {
       "id": "anger",
       "name": "Anger",
       "type": "shared",
+      "native_term": "galit",
       "definition": "Open frustration or rage at being wronged, blocked, or treated unfairly."
     },
     {
       "id": "fear",
       "name": "Fear",
       "type": "shared",
+      "native_term": "takot",
       "definition": "Feeling unsafe or afraid of a specific, present threat to oneself or others."
     },
     {
       "id": "burnout",
       "name": "Burnout",
       "type": "shared",
+      "native_term": "pagod",
       "definition": "Emotional and physical exhaustion from prolonged demands, with loss of motivation or feeling numb."
     },
     {
       "id": "jealousy",
       "name": "Jealousy",
       "type": "shared",
+      "native_term": "selos / inggit",
       "definition": "Distress at a threat to a relationship from a rival (selos), or at someone having what one lacks (inggit)."
     },
     {
@@ -83,10 +92,28 @@
       "definition": "No clear emotion is expressed; the post is mainly a practical, procedural, or informational request."
     }
   ],
-  "concept_aliases_note": "Fixed before the full run (pilot 2026-11-23, analysis plan §11 v1.1): in the cultural_concept field only, these emotion ids are read as the one concept they name. Parsed records flag it with concept_alias = true.",
-  "concept_aliases": {
-    "pakikisama_strain": "pakikisama",
-    "utang_na_loob_guilt": "utang_na_loob"
+  "legacy_id_map_note": "For migrating v1 and pilot (2026-11-23) labels. In the emotion field only. For cultural_concept, v1 ids utang_na_loob_guilt and pakikisama_strain map to utang_na_loob and pakikisama.",
+  "legacy_id_map": {
+    "emotion": {
+      "utang_na_loob_guilt": {
+        "to": "konsensya",
+        "also_set_cultural_concept": "utang_na_loob"
+      },
+      "pakikisama_strain": {
+        "to": null,
+        "action": "manual_review",
+        "candidates": [
+          "hiya",
+          "sama_ng_loob",
+          "burnout"
+        ],
+        "also_set_cultural_concept": "pakikisama"
+      }
+    },
+    "cultural_concept": {
+      "utang_na_loob_guilt": "utang_na_loob",
+      "pakikisama_strain": "pakikisama"
+    }
   },
   "cultural_concepts": [
     {
@@ -112,12 +139,14 @@
     {
       "id": "family_obligation",
       "name": "Family obligation",
+      "native_term": "pananagutan sa pamilya",
       "definition": "Duty to support or prioritize the family, such as being the breadwinner or panganay, sending money, or caring for parents."
     },
     {
       "id": "respect_for_elders",
       "name": "Respect for elders",
-      "definition": "Deference to parents and older relatives, where disagreeing openly is seen as disrespectful (walang galang)."
+      "native_term": "paggalang",
+      "definition": "Deference to parents and older relatives (paggalang, e.g. pagmamano), where disagreeing openly is seen as disrespectful (walang galang)."
     },
     {
       "id": "bahala_na",
@@ -141,24 +170,66 @@
     }
   ],
   "domain": [
-    {"id": "family", "definition": "Parents, siblings, in-laws, relatives."},
-    {"id": "romantic", "definition": "Partners, exes, dating, marriage."},
-    {"id": "friendship", "definition": "Friends, barkada, roommates, neighbors."},
-    {"id": "work_school", "definition": "Jobs, employers, coworkers, studies, exams, career."},
-    {"id": "money", "definition": "Debt, loans, budgeting, purchases, where money is the main issue."},
-    {"id": "other", "definition": "Health, legal, self-improvement, or anything else."}
+    {
+      "id": "family",
+      "definition": "Parents, siblings, in-laws, relatives."
+    },
+    {
+      "id": "romantic",
+      "definition": "Partners, exes, dating, marriage."
+    },
+    {
+      "id": "friendship",
+      "definition": "Friends, barkada, roommates, neighbors."
+    },
+    {
+      "id": "work_school",
+      "definition": "Jobs, employers, coworkers, studies, exams, career."
+    },
+    {
+      "id": "money",
+      "definition": "Debt, loans, budgeting, purchases, where money is the main issue."
+    },
+    {
+      "id": "other",
+      "definition": "Health, legal, self-improvement, or anything else."
+    }
   ],
   "need_type": [
-    {"id": "emotional", "definition": "The poster mainly wants comfort, validation, or someone to listen."},
-    {"id": "practical", "definition": "The poster mainly wants concrete steps, information, or a decision."},
-    {"id": "both", "definition": "The poster clearly asks for both."}
+    {
+      "id": "emotional",
+      "definition": "The poster mainly wants comfort, validation, or someone to listen."
+    },
+    {
+      "id": "practical",
+      "definition": "The poster mainly wants concrete steps, information, or a decision."
+    },
+    {
+      "id": "both",
+      "definition": "The poster clearly asks for both."
+    }
   ],
   "exclusion_reasons": [
-    {"id": "self_harm_crisis", "definition": "Suicidal thoughts, self-harm, or an active crisis needing emergency help."},
-    {"id": "minor_or_abuse", "definition": "The poster or a central person is a minor in a sensitive situation, or there is physical, sexual, or domestic abuse."},
-    {"id": "sexual_content", "definition": "Explicit sexual content or questions centered on sex acts."},
-    {"id": "doxxing_prone", "definition": "Details that could identify real people even after masking (named workplace, small town plus unique events, public figures)."},
-    {"id": "bot_or_spam", "definition": "Generated, promotional, or spam content."}
+    {
+      "id": "self_harm_crisis",
+      "definition": "Suicidal thoughts, self-harm, or an active crisis needing emergency help."
+    },
+    {
+      "id": "minor_or_abuse",
+      "definition": "The poster or a central person is a minor in a sensitive situation, or there is physical, sexual, or domestic abuse."
+    },
+    {
+      "id": "sexual_content",
+      "definition": "Explicit sexual content or questions centered on sex acts."
+    },
+    {
+      "id": "doxxing_prone",
+      "definition": "Details that could identify real people even after masking (named workplace, small town plus unique events, public figures)."
+    },
+    {
+      "id": "bot_or_spam",
+      "definition": "Generated, promotional, or spam content."
+    }
   ],
   "strategies": [
     {

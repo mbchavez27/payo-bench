@@ -23,9 +23,9 @@ from payo_eval.paths import EVAL_DIR, get_paths, load_config
 from payo_eval.sheets import MAIN_SHEET
 
 SEED = 7
-EMOTION_WEIGHTS = {"hiya": .10, "tampo": .06, "sama_ng_loob": .08, "pikon": .02, "utang_na_loob_guilt": .08,
-                   "pakikisama_strain": .03, "worry": .18, "sadness": .15, "anger": .07, "fear": .03,
-                   "burnout": .08, "jealousy": .05, "none_practical": .07}
+EMOTION_WEIGHTS = {"hiya": .10, "tampo": .06, "sama_ng_loob": .08, "pikon": .02, "konsensya": .09,
+                   "worry": .18, "sadness": .15, "anger": .07, "fear": .04,
+                   "burnout": .09, "jealousy": .05, "none_practical": .07}
 DOMAINS = ("family", "romantic", "friendship", "work_school", "money", "other")
 CONCEPTS = ("utang_na_loob", "hiya", "pakikisama", "amor_propio", "family_obligation", "respect_for_elders",
             "bahala_na")
@@ -217,9 +217,8 @@ def synthetic_config(path: Path) -> None:
     text = re.sub(r'^adjudicator = .*$', 'adjudicator = "adj"', text, flags=re.M)
     text = re.sub(r'^screener = .*$', 'screener = "scr"', text, flags=re.M)
     text = re.sub(r'^n = 900', 'n = 600', text, flags=re.M)
-    text = re.sub(r'^pakikisama_strain = ""', 'pakikisama_strain = "hiya"', text, flags=re.M)
     text = text.replace("[merges]\n", '[merges]\nburnout = "worry"\njealousy = "anger"\nsama_ng_loob = "hiya"\n'
-                        'utang_na_loob_guilt = "hiya"\nanger = "sadness"\nnone_practical = "worry"\n', 1)
+                        'konsensya = "worry"\nanger = "sadness"\nnone_practical = "worry"\n', 1)
     text = re.sub(r'^bootstrap_b = \d+', 'bootstrap_b = 200', text, flags=re.M)
     path.write_text(text, encoding="utf-8")
 

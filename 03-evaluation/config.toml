@@ -66,12 +66,10 @@ kappa_gate = 0.40    # analysis plan §2: one-vs-rest κ below this needs revisi
 
 # Proposed merges (analysis plan §2). Applied only to labels that end up below min_label, and only at
 # scoring time: prompts, schema and the adjudicated sheet keep the original label.
-# pakikisama_strain has no default: set "hiya" or "burnout" at adjudication if it is needed.
 [merges]
 pikon = "anger"
 tampo = "sama_ng_loob"
 fear = "worry"
-pakikisama_strain = ""
 
 [rating]
 n_eval = 60          # analysis plan §1.1 (80 → 60 in v1.3; the floor for inferential H4)

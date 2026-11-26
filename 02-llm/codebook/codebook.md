@@ -1,6 +1,6 @@
 # Annotation codebook — Filipino emotions in r/AdvicePH posts (RQ1)
 
-**Version:** v1 · **Status:** frozen (2026-11-24). Sources were checked by the team against the originals ([`source-verification.md`](source-verification.md)); full references are in §11. Any change after this bumps the version and is logged in §10.
+**Version:** v2 · **Status:** active draft (supersedes v1 frozen 2026-11-24). Sources were checked by the team against the originals ([`source-verification.md`](source-verification.md)); full references are in §11. Any change after this bumps the version and is logged in §10.
 
 The one-line definitions and all label ids live in [`../gold/emotion-recognition/label-schema.json`](../gold/emotion-recognition/label-schema.json). The model prompts read from that file, so **if you change a definition, change it there** and copy it here. The longer definitions below are for annotators only and are never shown to models.
 
@@ -29,7 +29,7 @@ For each post (Problem/Goal + Context + Previous Attempts), fill one row of [`an
 | ------------------ | -------------------------------------------------------------- | ------- |
 | `exclude_flag`     | `yes` / `no`                                                   | §2      |
 | `exclude_reason`   | one id from `exclusion_reasons`, or empty                      | §2      |
-| `primary_emotion`  | one emotion id                                                 | §3–§4   |
+| `primary_emotion`  | one emotion id (4 culture-bound, 7 shared, 1 none)             | §3–§4   |
 | `cultural_concept` | one concept id, or `none`                                      | §5      |
 | `expression`       | `explicit` / `implicit`                                        | §6      |
 | `domain`           | `family` `romantic` `friendship` `work_school` `money` `other` | §7      |
@@ -63,76 +63,71 @@ When unsure, flag it and write why in `notes`. Adjudication decides. Report how 
 1. **The poster's felt state, not the situation.** Label what the poster expresses or clearly shows, not what someone in that situation *should* feel. If a loan is unpaid but the poster only asks how to file a small-claims case, the label is `none_practical`, not `anger`.
 2. **One label: the most salient.** If several emotions appear, pick the one that drives the request. This is usually what the Problem/Goal is about. Put the runner-up in `notes`.
 3. **Culture-bound vs. shared tie-break.** If a culture-bound label and a shared label both fit equally, choose the **culture-bound** label *only if* its defining feature (in §4) is present in the text. Otherwise choose the shared label. Example: hurt at a partner is `tampo` only if there is withdrawal plus a wish to be noticed or won back. Otherwise it is `sadness` or `anger`.
-4. **Emotion ≠ cultural concept.** The emotion is what the poster feels. The concept (§5) is the cultural norm framing the situation. They are labeled separately and do not have to match. A poster can feel `worry` in a `family_obligation` situation.
+4. **Emotion ≠ cultural concept.** The emotion is what the poster feels. The concept (§5) is the cultural norm framing the situation. They are labeled separately and do not have to match. A poster can feel `konsensya` in an `utang_na_loob` situation, or feel `hiya` / `sama_ng_loob` / `burnout` in a `pakikisama` situation.
 5. **`none_practical`** is used when the post is a request for information, procedure, or a decision, with no emotion expressed beyond ordinary politeness or urgency. "Please help po, urgent" alone is not an emotion.
 
 ---
 
 ## 4. Emotion labels
 
-### Culture-bound
+### Culture-bound (4 labels)
 
 #### `hiya`
-**Definition.** Shame or social embarrassment at being seen by others as improper, a burden, or out of place. It often stops the person from asking, refusing, or speaking up.
-**Defining feature.** An *audience*: the poster worries how they look to others, and this holds them back.
-**Use when.** "Nahihiya akong humingi", "nakakahiya sa kanila", avoiding asking for what they are owed, feeling unable to face people after an incident.
-**Don't confuse with.** `utang_na_loob_guilt` (the pull is a *debt*, not looking bad); `worry` (fear of an outcome, with no social audience). Note: *hiyang* (suited to, e.g. a medicine) is a different word.
-**Example (paraphrased).** A poster has needed to ask a coworker to return a loan for months but can't bring it up because it would make things awkward and make them look petty.
+**Definition.** Shame or social embarrassment at being seen by others as improper, a burden, or out of place. It often stops the person from asking, refusing, or speaking up.  
+**Defining feature.** An *audience*: the poster worries how they look to others, and this holds them back.  
+**Use when.** "Nahihiya akong humingi", "nakakahiya sa kanila", avoiding asking for what they are owed, feeling unable to face people after an incident.  
+**Don't confuse with.** `konsensya` (inward moral burden/conscience, even without an audience); `worry` (fear of an outcome, with no social audience). Note: *hiyang* (suited to, e.g. a medicine) is a different word.  
+**Example (paraphrased).** A poster has needed to ask a coworker to return a loan for months but can't bring it up because it would make things awkward and make them look petty.  
 **Source.** Bulatao (1964, p. 428): hiya as a painful emotion in a social or authority relationship that inhibits self-assertion. Enriquez (1992) and Pe-Pua & Protacio-Marcelino (2000) for hiya as *propriety*, not only shame.
 
 #### `tampo`
-**Definition.** Hurt, sulking withdrawal toward someone close who did not give expected care or attention, usually hoping to be noticed and won back (*nilalambing*).
-**Defining feature.** Withdrawal plus an unspoken wish for the other person to notice and make up. It is **mild and repairable**.
-**Use when.** Going quiet after a partner forgot to greet them at midnight; not replying so the other person will reach out first; "nagtatampo ako".
-**Don't confuse with.** `sama_ng_loob` (deeper, accumulated, and no longer just waiting to be appeased); `sadness` (no withdrawal directed at a person); `anger` (open confrontation).
-**Example (paraphrased).** A poster's partner spent New Year's Eve drinking with family and forgot to call. The poster stopped replying and is now asking if they are being unreasonable.
+**Definition.** Hurt, sulking withdrawal toward someone close who did not give expected care or attention, usually hoping to be noticed and won back (*nilalambing*).  
+**Defining feature.** Withdrawal plus an unspoken wish for the other person to notice and make up. It is **mild and repairable**.  
+**Use when.** Going quiet after a partner forgot to greet them at midnight; not replying so the other person will reach out first; "nagtatampo ako".  
+**Don't confuse with.** `sama_ng_loob` (deeper, accumulated, and no longer just waiting to be appeased); `sadness` (no withdrawal directed at a person); `anger` (open confrontation).  
+**Example (paraphrased).** A poster's partner spent New Year's Eve drinking with family and forgot to call. The poster stopped replying and is now asking if they are being unreasonable.  
 **Source.** Church, Katigbak, Reyes & Jensen (1998, pp. 66–67, 81): tampo as a culture-specific Filipino emotion concept.
 
 #### `sama_ng_loob`
-**Definition.** Deep, lingering hurt and resentment toward someone close, built up from repeated or serious wrongs and often left unspoken.
-**Defining feature.** **Accumulation** (a history of hurts) plus a relationship that *continues* despite the resentment.
-**Use when.** Years of being taken for granted by family; "first sama ng loob of the year" after yet another request for money; hurt at a parent's favoritism.
-**Don't confuse with.** `tampo` (a single, recent, repairable episode); `anger` (an acute reaction to one event, expressed openly).
-**Example (paraphrased).** A poster's in-law keeps borrowing money and never repays. The poster finally said no, but still carries the hurt from all the earlier times.
+**Definition.** Deep, lingering hurt and resentment toward someone close, built up from repeated or serious wrongs and often left unspoken.  
+**Defining feature.** **Accumulation** (a history of hurts) plus a relationship that *continues* despite the resentment.  
+**Use when.** Years of being taken for granted by family; "first sama ng loob of the year" after yet another request for money; hurt at a parent's favoritism.  
+**Don't confuse with.** `tampo` (a single, recent, repairable episode); `anger` (an acute reaction to one event, expressed openly).  
+**Example (paraphrased).** A poster's in-law keeps borrowing money and never repays. The poster finally said no, but still carries the hurt from all the earlier times.  
 **Source.** Alejo (1990, pp. 82–95) on sama ng loob as a wounding of *loob* held inside to preserve the relationship; Church et al. (1998, p. 66) for its status as a Filipino emotion concept.
 
 #### `pikon`
-**Definition.** Irritability or loss of composure triggered by teasing, banter, or minor slights, often accompanied by self-consciousness or social stigma for failing to take a joke.
-**Defining feature.** A **trigger that others consider minor** (teasing, a joke) plus a reaction the poster now questions ("pikon ba ako?").
-**Use when.** Barkada keep joking about the poster's weight and they snapped; asking if they are too sensitive to a coworker's banter.
-**Don't confuse with.** `anger` (the trigger is a real wrong, and the poster doesn't question their reaction); `hiya` (embarrassment with no provocation).
-**Example (paraphrased).** A poster walked out of a family gathering after cousins kept teasing them about being single, and now wonders whether they overreacted.
-**Source.** Pe-Pua & Protacio-Marcelino (2000, pp. 56–57) on *biro* (teasing) norms and being pikon. The self-questioning defining feature is the team's operationalization: the literature treats the affect itself as irritability or anger, not a separate emotion.
-**Team operationalization.** The "pikon ba ako?" feature is ours, not from the literature (outcome b, `source-verification.md`).
+**Definition.** Irritability or loss of composure triggered by teasing, banter, or minor slights, often accompanied by self-consciousness or social stigma for failing to take a joke.  
+**Defining feature.** A **trigger that others consider minor** (teasing, a joke) plus a reaction the poster now questions ("pikon ba ako?").  
+**Use when.** Barkada keep joking about the poster's weight and they snapped; asking if they are too sensitive to a coworker's banter.  
+**Don't confuse with.** `anger` (the trigger is a real wrong, and the poster doesn't question their reaction); `hiya` (embarrassment with no provocation).  
+**Example (paraphrased).** A poster walked out of a family gathering after cousins kept teasing them about being single, and now wonders whether they overreacted.  
+**Source.** Pe-Pua & Protacio-Marcelino (2000, pp. 56–57) on *biro* (teasing) norms and being pikon. The self-questioning defining feature is the team's operationalization: the literature treats the affect itself as irritability or anger, not a separate emotion.  
+**Team operationalization.** The "pikon ba ako?" feature is ours, not from the literature (outcome b, `source-verification.md`).  
 **Note.** This is likely rare (only 5 posts in silver use the word). It may need to be merged (§9).
 
-#### `utang_na_loob_guilt`
-**Definition.** Guilt or pressure from a debt of gratitude: feeling unable to refuse, or obliged to repay, someone (often family) who helped or raised them.
-**Defining feature.** An explicit or clearly implied **debt**: "they raised me / paid for my school / helped me before, so...".
-**Use when.** Feeling unable to refuse a relative's loan because they once paid the poster's tuition; guilt about moving out after parents "sacrificed everything".
-**Don't confuse with.** `hiya` (no debt, only how one looks); `burnout` (exhaustion from supporting family, with no guilt or debt framing). If both apply, use the one the poster emphasizes.
-**Example (paraphrased).** A poster wants to stop giving most of their salary to their parents, but feels like an ungrateful child because their parents worked abroad to pay for their education.
-**Source.** Kaut (1961, pp. 256–260) and Hollnsteiner (1961/1973) on the debt of gratitude and the pressure, *hiya* and inability to refuse it creates. Enriquez (1992) for utang na loob as gratitude and solidarity, which separates the value (concept `utang_na_loob`) from this distressing emotion.
+---
 
-#### `pakikisama_strain`
-**Definition.** Psychological distress or exhaustion resulting from yielding to group or interpersonal expectations to maintain smooth interpersonal relations (*pakikisama*) at the expense of one's own wishes, values, or boundaries.
-**Defining feature.** **Conformity for harmony** that the poster resents or is tired of.
-**Use when.** Being forced to drink at office gatherings to "makisama"; always agreeing to barkada plans they can't afford; not wanting to be called *KJ*.
-**Don't confuse with.** `hiya` (the focus is how one looks, not going along with the group); `burnout` (exhaustion with no group-conformity element).
-**Example (paraphrased).** A new employee keeps joining after-work drinking sessions they can't afford because declining would make them seem *suplado*.
-**Source.** Lynch (1962/1973) on pakikisama and smooth interpersonal relations; Enriquez (1992) on the cost of surface-level pakikisama without *pakikipagkapwa*. The sources describe the norm; the *strain* category is the team's affective operationalization of its personal cost.
+### Broadly shared (7 labels)
 
-### Broadly shared
+#### `konsensya` (native term: *konsensya*)
+**Definition.** Guilt or a troubled conscience over something one did, failed to do, or feels unable to repay.  
+**Defining feature.** An **inward moral burden or troubled conscience** (*"kinakain ako ng konsensya"*, feeling like a bad person, remorse over neglected duties).  
+**Use when.** Feeling guilty about keeping secrets or wanting to cut off financially demanding parents; remorse over a mistake that hurt a friend; feeling unable to repay family sacrifices.  
+**Don't confuse with.** `hiya` (shame facing an external audience or social judgment; *konsensya* is internal even if nobody knows); `worry` (fear of future bad outcomes, without self-reproach or guilt); `cultural_concepts` (`utang_na_loob`) (*utang na loob* is the cultural norm/relationship; *konsensya* is the emotional guilt felt when unable to fulfill or repay it).  
+**Example (paraphrased).** A poster wants to stop giving their entire salary to their parents and start saving for themselves, but feels an overwhelming pang of conscience that they are being a selfish child after all their parents' sacrifices.  
+**Source.** Mercado (1974, pp. 53–67) on *budhi* and *konsensya* in Filipino moral philosophy; Enriquez (1992); Church et al. (1998, p. 81).
 
-| id         | Definition                                                                                   | Use when / boundary                                                                                       | Source                                     |
-| ---------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `worry`    | Anxious, repeated thinking about what might go wrong in an uncertain situation.             | Future-oriented ("baka...", "paano kung..."). Not `fear`, which is about a present, specific threat.     | Borkovec et al. (1983, p. 10). Not Ekman: worry is not a basic emotion |
-| `sadness`  | Feeling down, hurt, or grieving after a loss, rejection, or disappointment.                  | Breakups, loss, being let down. Use `tampo` or `sama_ng_loob` if their defining features apply.          | Ekman (1992, pp. 170, 177)                 |
-| `anger`    | Open frustration or rage at being wronged, blocked, or treated unfairly.                     | "Galit na galit ako", "nakakainis". Not `pikon` (minor trigger questioned) or `sama_ng_loob` (accumulated, unspoken). | Ekman (1992, pp. 170, 177)       |
-| `fear`     | Feeling unsafe or afraid of a specific, present threat to oneself or others.                 | Threats, stalking, unsafe homes (check §2 first: abuse is excluded).                                     | Ekman (1992, pp. 170, 177)                 |
-| `burnout`  | Emotional and physical exhaustion from prolonged demands, with loss of motivation or feeling numb. | "Pagod na pagod na ako", "wala na akong pake", long-running school, work, or caregiving load.       | Maslach & Leiter (2016, p. 103)            |
-| `jealousy` | Distress at a threat to a relationship from a rival (*selos*), or at someone having what one lacks (*inggit*). | Includes both selos and envy. Write `selos` or `inggit` in `notes` so they can be split later. | Parrott & Smith (1993, pp. 906–907). They separate jealousy and envy; this label merges selos and inggit on purpose |
-| `none_practical` | No clear emotion is expressed; mainly a practical, procedural, or informational request. | See §3 rule 5.                                                                                      | —                                          |
+| id | Native term | Definition | Use when / boundary | Source |
+| --- | --- | --- | --- | --- |
+| `konsensya` | *konsensya* | Guilt or a troubled conscience over something one did, failed to do, or feels unable to repay. | Remorse, guilt over boundaries or debts. Not `hiya` (external social audience). | Mercado (1974); Enriquez (1992) |
+| `worry` | *pag-aalala* | Anxious, repeated thinking about what might go wrong in an uncertain situation. | Future-oriented ("baka...", "paano kung..."). Not `fear` (present specific threat). | Borkovec et al. (1983, p. 10) |
+| `sadness` | *lungkot* | Low mood or grief after a loss or disappointment, where no particular close person is being blamed or sulked at. | Breakups, general loss, grief. Use `tampo` or `sama_ng_loob` if targeted resentment at a close person applies. | Ekman (1992, pp. 170, 177) |
+| `anger` | *galit* | Open frustration or rage at being wronged, blocked, or treated unfairly. | "Galit na galit ako", "nakakainis". Not `pikon` (minor trigger questioned) or `sama_ng_loob` (accumulated, unspoken). | Ekman (1992, pp. 170, 177) |
+| `fear` | *takot* | Feeling unsafe or afraid of a specific, present threat to oneself or others. | Threats, stalking, unsafe environments (check §2 first: abuse is excluded). | Ekman (1992, pp. 170, 177) |
+| `burnout` | *pagod* | Emotional and physical exhaustion from prolonged demands, with loss of motivation or feeling numb. | "Pagod na pagod na ako", "wala na akong pake", long-running load. Not conformity-driven `hiya`. | Maslach & Leiter (2016, p. 103) |
+| `jealousy` | *selos / inggit* | Distress at a threat to a relationship from a rival (*selos*), or at someone having what one lacks (*inggit*). | Includes both selos and envy. Write `selos` or `inggit` in `notes` so they can be split later. | Parrott & Smith (1993, pp. 906–907) |
+| `none_practical` | — | No clear emotion is expressed; mainly a practical, procedural, or informational request. | See §3 rule 5. | — |
 
 ---
 
@@ -140,24 +135,24 @@ When unsure, flag it and write why in `notes`. Adjudication decides. Report how 
 
 Pick the **one** cultural concept that most shapes the situation or the poster's dilemma, or `none`. A concept applies only if removing it would change what the right advice is.
 
-| id                   | Definition                                                                                   | Typical cues                                                  | Source                         |
-| -------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------ |
-| `utang_na_loob`      | A lasting debt of gratitude to someone who helped you, expected to be repaid through loyalty or help. | "pinag-aral ako", "malaki utang na loob ko"             | Hollnsteiner (1961/1973); Enriquez (1992) |
-| `hiya`               | Social norm of propriety and avoiding shame or loss of face in front of others. | "ano sasabihin ng kapitbahay", "nakakahiya sa pamilya"      | Bulatao (1964, p. 428); Enriquez (1992) |
-| `pakikisama`         | Getting along with the group and avoiding open conflict to keep relationships smooth.        | "makisama ka na lang", "baka sabihing KJ"                     | Lynch (1962/1973); Enriquez (1992) |
-| `amor_propio`        | Personal pride and self-esteem that is easily wounded by criticism or loss of face.          | refusing help out of pride, deeply hurt by public criticism   | Lynch (1962/1973)              |
-| `family_obligation`  | Duty to support or prioritize the family, such as being the breadwinner or panganay, sending money, or caring for parents. | "breadwinner", "panganay", "padala", "ako lahat sumasalo" | Medina (2001); Hollnsteiner (1961/1973) |
-| `respect_for_elders` | Deference to parents and older relatives, where disagreeing openly is seen as disrespectful. | "walang galang", "sumasagot", "magulang mo pa rin yan"        | Jocano (1997); Medina (2001)   |
-| `bahala_na`          | Facing an uncertain situation by leaving the outcome to fate or God and pushing ahead.        | "bahala na", "ipagdasal na lang"                              | Bostrom (1968, p. 401); Enriquez (1992) |
-| `none`               | No specific Filipino cultural concept shapes the situation.                                  | —                                                             | —                              |
+| id | Native term | Definition | Typical cues | Source |
+| --- | --- | --- | --- | --- |
+| `utang_na_loob` | *utang na loob* | A lasting debt of gratitude to someone who helped you, expected to be repaid through loyalty or help. | "pinag-aral ako", "malaki utang na loob ko" | Hollnsteiner (1961/1973); Enriquez (1992) |
+| `hiya` | *hiya* | Social norm of propriety and avoiding shame or loss of face in front of others. | "ano sasabihin ng kapitbahay", "nakakahiya sa pamilya" | Bulatao (1964, p. 428); Enriquez (1992) |
+| `pakikisama` | *pakikisama* | Getting along with the group and avoiding open conflict to keep relationships smooth. | "makisama ka na lang", "baka sabihing KJ" | Lynch (1962/1973); Enriquez (1992) |
+| `amor_propio` | *amor propio* | Personal pride and self-esteem that is easily wounded by criticism or loss of face. | refusing help out of pride, deeply hurt by public criticism | Lynch (1962/1973) |
+| `family_obligation` | *pananagutan sa pamilya* | Duty to support or prioritize the family, such as being the breadwinner or panganay, sending money, or caring for parents. | "breadwinner", "panganay", "padala", "ako lahat sumasalo" | Medina (2001); Hollnsteiner (1961/1973) |
+| `respect_for_elders` | *paggalang* | Deference to parents and older relatives, where disagreeing openly is seen as disrespectful. | "walang galang", "sumasagot", "magulang mo pa rin yan" | Jocano (1997); Medina (2001) |
+| `bahala_na` | *bahala na* | Facing an uncertain situation by leaving the outcome to fate or God and pushing ahead. | "bahala na", "ipagdasal na lang" | Bostrom (1968, p. 401); Enriquez (1992) |
+| `none` | — | No specific Filipino cultural concept shapes the situation. | — | — |
 
-`hiya` appears both as an emotion and as a concept: a poster may feel `hiya` (emotion), and a situation may be shaped by the hiya norm (concept). Label each on its own terms.
+**Note on separation:** `hiya` appears both as an emotion and as a concept: a poster may feel `hiya` (emotion), and a situation may be shaped by the hiya norm (concept). Similarly, debt of gratitude is captured as concept `utang_na_loob`, while the felt guilt is emotion `konsensya`. Group conformity pressure is concept `pakikisama`, while the felt distress is `hiya`, `sama_ng_loob`, or `burnout`.
 
 ---
 
 ## 6. Explicit vs. implicit expression
 
-- **`explicit`**: the poster names the chosen emotion, or a close synonym, in any language: *nahihiya, nagtatampo, masama ang loob, naiinis, takot, selos, pagod na pagod, guilty*.
+- **`explicit`**: the poster names the chosen emotion, or a close synonym, in any language: *nahihiya, nagtatampo, masama ang loob, pikon, nakonsensya/guilty, nag-aalala, malungkot, galit/naiinis, takot, selos, pagod na pagod*.
 - **`implicit`**: the emotion is inferable only from events, behavior, or tone.
 
 This refers to the label you chose. If the poster writes "naiinis ako" but you labeled `tampo`, it is `implicit` unless tampo or a synonym is also named.
@@ -194,6 +189,7 @@ Rare labels are merged after adjudication and before any model output is viewed.
 | v1-draft | 2026-11-18 | First draft.  |
 | v1       | 2026-11-24 | Sources verified by the team ([`source-verification.md`](source-verification.md)); references added (§11). Definitions revised for `pikon` and `pakikisama_strain` (emotions) and `hiya` (concept), in `label-schema.json` too. The pilot model run used the v1-draft wording; pilot outputs are not part of the study. |
 | v1.1     | 2026-11-24 | Process only, no definition changed: keyword pre-screen in code (§0), shared pilot skipped (§8.1), models may run before annotation but stay unopened (§8.5). See analysis plan v1.3. |
+| v2       | 2026-11-26 | Schema v2 update: (1) `utang_na_loob_guilt` replaced by `konsensya` (shared emotion); the debt of gratitude is captured under cultural concepts (`utang_na_loob`). (2) `pakikisama_strain` removed as redundant with `hiya`, `sama_ng_loob`, and `burnout`, plus `pakikisama` in cultural concepts. (3) `concept_aliases` replaced by `legacy_id_map` for migrating v1/pilot labels. (4) `family_obligation` and `respect_for_elders` carry native terms (*pananagutan sa pamilya*, *paggalang*). (5) `sadness` definition narrowed to prevent overlap with `tampo` and `sama_ng_loob`. (6) Native terms added to all shared emotions. |
 
 ## 11. References
 
@@ -210,6 +206,7 @@ Rare labels are merged after adjudication and before any model output is viewed.
 - Lynch, F. (1973). Social acceptance reconsidered. In F. Lynch & A. de Guzman II (Eds.), *Four readings on Philippine values* (4th ed., pp. 1–68). Ateneo de Manila University Press.
 - Maslach, C., & Leiter, M. P. (2016). Understanding the burnout experience: Recent research and its implications for psychiatry. *World Psychiatry, 15*(2), 103–111.
 - Medina, B. T. G. (2001). *The Filipino family* (2nd ed.). University of the Philippines Press.
+- Mercado, L. N. (1974). *Elements of Filipino philosophy*. Divine Word University Publications.
 - Parrott, W. G., & Smith, R. H. (1993). Distinguishing the experiences of envy and jealousy. *Journal of Personality and Social Psychology, 64*(6), 906–920.
 - Pe-Pua, R., & Protacio-Marcelino, E. A. (2000). Sikolohiyang Pilipino (Filipino psychology): A legacy of Virgilio G. Enriquez. *Asian Journal of Social Psychology, 3*(1), 49–71.
 

@@ -35,11 +35,16 @@ class Schema:
     @property
     def concept_aliases(self) -> dict[str, str]:
         """Emotion ids accepted in the concept field, mapped to their concept id (fixed, logged rule)."""
-        aliases = dict(self.raw.get("concept_aliases", {}))
+        aliases = dict(self.raw.get("concept_aliases") or self.raw.get("legacy_id_map", {}).get("cultural_concept", {}))
         bad = {k: v for k, v in aliases.items() if v not in self.concept_ids}
         if bad:
             raise ValueError(f"concept_aliases point to unknown concept ids: {bad}")
         return aliases
+
+    @property
+    def legacy_id_map(self) -> dict[str, Any]:
+        """Map for migrating v1 and pilot labels."""
+        return dict(self.raw.get("legacy_id_map", {}))
 
     def render_list(self, key: str) -> str:
         """
