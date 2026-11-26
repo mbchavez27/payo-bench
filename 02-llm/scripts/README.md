@@ -4,9 +4,9 @@ These scripts run **only** the two study tasks on Gemma and SEA-LION:
 
 | Task | `--task` | Prompt |
 | --- | --- | --- |
-| A. Emotion recognition | `recognition` | `prompts/emotion-recognition_v1.md` |
-| B. Advice, baseline | `advice-p0` | `prompts/advice-p0_v1.md` |
-| B. Advice, oracle | `advice-oracle` | `prompts/advice-oracle_v1.md` (adjudicated gold labels only, never Task A output) |
+| A. Emotion recognition | `recognition` | `prompts/emotion-recognition_v2.md` |
+| B. Advice, baseline | `advice-p0` | `prompts/advice-p0_v2.md` |
+| B. Advice, oracle | `advice-oracle` | `prompts/advice-oracle_v2.md` (adjudicated gold labels only, never Task A output) |
 
 There are two profiles:
 

@@ -30,7 +30,7 @@ n_posts = 30          # first N posts of the run's post list
 
 [max_new_tokens]
 recognition = 64      # one short JSON object
-advice = 400          # ~150-word Taglish reply with headroom (raised from 320 after the pilot: 2/30 SEA-LION replies cut off); truncation is logged
+advice = 250          # ~90-word Taglish reply with headroom (calibrated to upper-quartile community length); truncation is logged
 
 [profiles.pilot]
 backend = "ollama"

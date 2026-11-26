@@ -25,7 +25,9 @@ Each file has YAML front-matter (`task`, `version`, `placeholders`, `output_form
 | --------------------------- | -------------------------------------------- | --------------- |
 | `emotion-recognition_v1.md` | Task A: emotion + cultural concept + confidence (pilot only; superseded) | Gemma, SEA-LION |
 | `emotion-recognition_v2.md` | Task A, as v1 plus a rule keeping emotion ids out of the concept field (pilot 2026-11-23) | Gemma, SEA-LION |
-| `advice-p0_v1.md`           | Task B, baseline: post only                  | Gemma, SEA-LION |
-| `advice-oracle_v1.md`       | Task B, oracle: post + gold emotion and concept | Gemma, SEA-LION |
+| `advice-p0_v1.md`           | Task B, baseline: post only (~150w, pilot only; superseded) | Gemma, SEA-LION |
+| `advice-p0_v2.md`           | Task B, baseline: post only (calibrated to ~90 words, max 110) | Gemma, SEA-LION |
+| `advice-oracle_v1.md`       | Task B, oracle: post + gold emotion and concept (~150w; superseded) | Gemma, SEA-LION |
+| `advice-oracle_v2.md`       | Task B, oracle: post + gold emotion and concept (calibrated to ~90 words, max 110) | Gemma, SEA-LION |
 
 Scale: ~300 posts × 2 models = 600 recognition outputs; ~300 posts × 2 models × 2 conditions = 1,200 replies.
