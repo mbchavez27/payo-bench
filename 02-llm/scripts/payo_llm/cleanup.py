@@ -1,14 +1,17 @@
 """
-Fixed, pre-registered cleanup of every reply shown to raters (analysis plan v1.8).
+Fixed, pre-registered cleanup of every reply shown to raters (analysis plan v1.8; rules 2-3 added in v1.9).
 
 The 4B models ignore length and opener instructions (pilot prompts v2-v4), so the reply text is
 normalized in code, the same way for every source (Gemma, SEA-LION and the community reply), so that the
 cleanup itself cannot reveal the source:
 
 1. Remove emoji.
-2. Remove leading interjections followed by punctuation ("Uy,", "Naku!", "Okay, so", ...), then capitalize.
-3. If the reply was cut off by max_new_tokens, drop the unfinished last sentence.
-4. If it is longer than MAX_WORDS, keep whole sentences up to MAX_WORDS. If the first sentence alone is
+2. Remove markdown emphasis markers ("*big*", "**big**", "__big__" -> "big"); single underscores are kept,
+   so usernames like u/some_name_here are not touched.
+3. Replace a spaced en/em dash (" – ", " — ") with ", " and an unspaced one ("2–3") with "-".
+4. Remove leading interjections followed by punctuation ("Uy,", "Naku!", "Okay, so", ...), then capitalize.
+5. If the reply was cut off by max_new_tokens, drop the unfinished last sentence.
+6. If it is longer than MAX_WORDS, keep whole sentences up to MAX_WORDS. If the first sentence alone is
    longer, cut at MAX_WORDS words.
 
 The raw model output is never changed: it stays in the run JSONL files. Only rater sheets use this text.
@@ -25,6 +28,10 @@ INTERJECTION = re.compile(
     r"^\s*(?:(?:okay|ok)[,]?\s+so[,]?\s+|"
     r"(?:uy|huy|naku|hala|ay|hay|haay|hays|oh|wow|okay|ok|sige|grabe|bes|beh|sis)\s*[,!.…]+\s*)",
     re.IGNORECASE)
+# Markdown emphasis: **x**, *x* or __x__ around non-space text on one line
+MARKDOWN = re.compile(r"(\*\*|\*|__)(?=\S)([^*\n]+?)(?<=\S)\1")
+SPACED_DASH = re.compile(r"\s+[\u2013\u2014]\s+")
+DASH = re.compile("[\u2013\u2014]")
 SENTENCE_END = re.compile(r"[.!?…]+[\"”’)\]]*(?=\s|$)")
 
 
@@ -53,7 +60,7 @@ def clean_reply(text: str, truncated: bool = False, max_words: int = MAX_WORDS) 
 
     Returns:
         The cleaned text, its word count and the operations applied
-        (emoji, opener, unfinished, trimmed, hard_cut).
+        (emoji, markdown, dash, opener, unfinished, trimmed, hard_cut).
     """
     ops = []
     out = text.strip()
@@ -61,6 +68,11 @@ def clean_reply(text: str, truncated: bool = False, max_words: int = MAX_WORDS) 
     if stripped != out:
         ops.append("emoji")
         out = re.sub(r"[ \t]{2,}", " ", stripped).strip()
+    if (plain := MARKDOWN.sub(r"\2", out)) != out:
+        out, _ = plain, ops.append("markdown")
+    if DASH.search(out):
+        out = DASH.sub("-", SPACED_DASH.sub(", ", out))
+        ops.append("dash")
     opener = False
     while (match := INTERJECTION.match(out)) and match.end() < len(out):
         out, opener = out[match.end():], True

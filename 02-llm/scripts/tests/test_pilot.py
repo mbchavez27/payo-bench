@@ -206,3 +206,16 @@ def test_style_health_persona_variants_and_taglish_share():
     style = style_health(outputs, pd.Series(dtype=str)).set_index("source").loc["gemma P0"]
     assert style["persona_n"] == 1
     assert style["tl_word_share"] == pytest.approx(4 / 11)  # talaga, yan, pero, mo out of 11 tokens
+
+
+def test_style_health_flags_markdown_and_dashes_and_reports_diba():
+    texts = ["Big *year* \u2013 di ba?", "Sobrang *hirap* \u2014 diba", "Kaya mo yan \u2013 promise", "Ok lang."]
+    outputs = pd.DataFrame([{**adv(str(i), 5), "raw_output": t} for i, t in enumerate(texts)])
+    community = pd.Series({str(i): "Pass ako dyan - seryoso" for i in range(4)})
+    style = style_health(outputs, community).set_index("source")
+    p0 = style.loc["gemma P0"]
+    assert (p0["markdown_share"], p0["dash_share"], p0["diba_share"]) == (0.5, 0.75, 0.5)
+    assert style.loc["community (same posts)", "dash_share"] == 0.0  # a plain hyphen is not a dash
+    text = " ".join(style_flags(style.reset_index()))
+    assert "50% of replies have markdown emphasis" in text and "75% of replies have an en/em dash" in text
+    assert "di ba" not in text  # reported, never flagged

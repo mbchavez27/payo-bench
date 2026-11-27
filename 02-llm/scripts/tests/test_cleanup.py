@@ -1,4 +1,4 @@
-"""Fixed reply cleanup used for every rater-facing reply (analysis plan v1.8)."""
+"""Fixed reply cleanup used for every rater-facing reply (analysis plan v1.8, v1.9)."""
 
 from payo_llm.cleanup import clean_reply
 
@@ -35,4 +35,27 @@ def test_hard_cut_when_one_sentence_exceeds_cap():
 
 def test_short_clean_reply_is_unchanged():
     text = "Finish your degree para may fallback ka in case shit happens"
+    assert clean_reply(text).text == text and clean_reply(text).ops == ()
+
+
+def test_strips_markdown_emphasis_but_keeps_underscores_and_lone_stars():
+    out = clean_reply("2024 was a *big* year, and **this** is __key__.")
+    assert out.text == "2024 was a big year, and this is key." and out.ops == ("markdown",)
+    kept = "Ask u/some_name_here, or rate it 5 * 2."
+    assert clean_reply(kept).text == kept and clean_reply(kept).ops == ()
+
+
+def test_markdown_around_opener_is_removed_before_the_opener():
+    out = clean_reply("*Uy*, gets ko yan.")
+    assert out.text == "Gets ko yan." and out.ops == ("markdown", "opener")
+
+
+def test_dashes_become_commas_or_hyphens():
+    out = clean_reply("Mahirap talaga \u2013 lalo na pag pamilya \u2014 pero kaya mo. Mga 2\u20133 buwan lang.")
+    assert out.text == "Mahirap talaga, lalo na pag pamilya, pero kaya mo. Mga 2-3 buwan lang."
+    assert out.ops == ("dash",)
+
+
+def test_community_style_reply_without_tells_is_unchanged():
+    text = "Kausapin mo muna siya ng maayos. If ayaw niya, then leave - you deserve better."
     assert clean_reply(text).text == text and clean_reply(text).ops == ()

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from payo_llm.cleanup import EMOJI
+from payo_llm.cleanup import DASH, EMOJI, MARKDOWN
 from payo_llm.records import KEY_FIELDS
 from payo_llm.schema import Schema
 
@@ -27,7 +27,8 @@ TARGET_WORDS = 90              # their target length ("about 90 words")
 MAX_OVER_CAP_SHARE = 0.10
 MAX_CTX_SHARE = 0.90           # longest prompt vs the context window
 MAX_OPENER_SHARE = 0.30        # one opening phrase across replies = a style tell for raters (v1.8)
-MAX_EMOJI_EXCESS = 0.20        # emoji share above the community's
+MAX_EMOJI_EXCESS = 0.20        # emoji (and, since v1.9, markdown or dash) share above the community's
+DIBA = re.compile(r"\bdi\s?ba\b", re.IGNORECASE)  # a tag question the models overuse; content, so reported only
 # Invented persona or presence claims (advice-*_v3.md forbids them); fixed list, whole-phrase, case-insensitive
 PERSONA = re.compile(r"\b(as an? (girl|guy|woman|man|mom|mother|dad|father|student|female|male)|(female|male|woman\'s|man\'s|girl\'s|guy\'s) perspective|we're here|we are here|"
                      r"i'm here for you|i am here for you|ako rin|i've been there|i have been there|i also)\b",
@@ -207,7 +208,8 @@ def style_health(outputs: pd.DataFrame, community_text: pd.Series) -> pd.DataFra
 
     Returns:
         One row per source (model x condition, grid as one row, community on the same posts): the most common
-        two-word opener and first word with their shares, the share of replies with an emoji, and persona-claim matches, and the Filipino function-word share of tokens.
+        two-word opener and first word with their shares, the share of replies with an emoji, markdown
+        emphasis, an en/em dash or "di ba", persona-claim matches, and the Filipino function-word share of tokens.
     """
     grid = _ok(outputs, "advice-oracle-grid").assign(condition="P-Oracle grid")
     adv = pd.concat([_ok(outputs, "advice-p0"), _ok(outputs, "advice-oracle"), grid])
@@ -225,19 +227,29 @@ def style_health(outputs: pd.DataFrame, community_text: pd.Series) -> pd.DataFra
             "top_opener_share": openers.iloc[0] / len(texts) if len(openers) else math.nan,
             "top_first_word": firsts.index[0] if len(firsts) else "",
             "top_first_word_share": firsts.iloc[0] / len(texts) if len(firsts) else math.nan,
-            "emoji_share": texts.map(lambda t: bool(EMOJI.search(t))).mean() if len(texts) else math.nan,
+            "emoji_share": _share(texts, EMOJI),
+            "markdown_share": _share(texts, MARKDOWN),
+            "dash_share": _share(texts, DASH),
+            "diba_share": _share(texts, DIBA),
             "persona_n": sum(len(PERSONA.findall(t)) for t in texts),
             "tl_word_share": _tl_share(texts),
         })
     return pd.DataFrame(rows)
 
 
+def _share(texts: pd.Series, pattern: re.Pattern) -> float:
+    """Share of texts in which the pattern occurs."""
+    return texts.map(lambda t: bool(pattern.search(t))).mean() if len(texts) else math.nan
+
+
 def style_flags(style: pd.DataFrame) -> list[str]:
-    """Warnings from style_health: a dominant opener, emoji well above community, any persona claim."""
+    """Warnings from style_health: a dominant opener, emoji/markdown/dashes well above community, any persona claim."""
     if style.empty:
         return []
     community = style[style["source"].str.startswith("community")]
-    base = community["emoji_share"].iloc[0] if len(community) else 0.0
+    bases = {col: community[col].iloc[0] if len(community) else 0.0
+             for col in ("emoji_share", "markdown_share", "dash_share")}
+    base = bases["emoji_share"]
     out = []
     for row in style[~style["source"].str.startswith("community")].itertuples():
         if row.top_opener_share > MAX_OPENER_SHARE:
@@ -246,6 +258,9 @@ def style_flags(style: pd.DataFrame) -> list[str]:
             out.append(f"{row.source}: {row.top_first_word_share:.0%} of replies start with '{row.top_first_word}'.")
         if row.emoji_share > base + MAX_EMOJI_EXCESS:
             out.append(f"{row.source}: {row.emoji_share:.0%} of replies have an emoji (community {base:.0%}).")
+        for col, what in (("markdown_share", "markdown emphasis"), ("dash_share", "an en/em dash")):
+            if getattr(row, col) > bases[col] + MAX_EMOJI_EXCESS:
+                out.append(f"{row.source}: {getattr(row, col):.0%} of replies have {what} (community {bases[col]:.0%}).")
         if row.persona_n:
             out.append(f"{row.source}: {row.persona_n} persona claims (e.g. 'as a girl', 'we're here').")
     return out
