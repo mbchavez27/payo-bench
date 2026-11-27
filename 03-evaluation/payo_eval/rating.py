@@ -13,6 +13,7 @@ import pandas as pd
 
 from payo_eval.instruments import BEST_FIT, bestfit_columns, rating_columns
 from payo_eval.sheets import normalize, validate
+from payo_llm.cleanup import clean_reply
 from payo_llm.schema import Schema
 
 LLM_ITEMS = (("gemma", "P0"), ("sealion", "P0"), ("gemma", "P-Oracle"), ("sealion", "P-Oracle"))
@@ -49,12 +50,13 @@ def build_items(posts: pd.DataFrame, community: pd.DataFrame, replies: Mapping[t
     Args:
         posts: Rated posts (post_id).
         community: post_id, reply_body, reply_score from silver.
-        replies: (model, condition) -> post_id, raw_output, reply_words from the full run.
+        replies: (model, condition) -> post_id, raw_output, truncated from the full run.
         seed: Random seed.
 
     Returns:
-        (key: item_id, post_id, post_ref, source, condition, position, reply_words, reply_score;
-         texts: item_id, reply) — texts go only to the rater sheets.
+        (key: item_id, post_id, post_ref, source, condition, position, reply_words, reply_words_raw,
+         clean_ops, reply_score; texts: item_id, reply) — texts go only to the rater sheets. Every reply,
+         community included, gets the same fixed cleanup (payo_llm.cleanup, v1.8); reply_words is what raters see.
     """
     rng = np.random.default_rng(seed)
     community = community.set_index("post_id")
@@ -70,17 +72,19 @@ def build_items(posts: pd.DataFrame, community: pd.DataFrame, replies: Mapping[t
     key_rows, text_rows = [], []
     for pid in order:
         reply = clean_community(str(community.loc[pid, "reply_body"]))
-        items = [("community", "none", reply, len(reply.split()), community.loc[pid, "reply_score"])]
+        items = [("community", "none", reply, False, community.loc[pid, "reply_score"])]
         for model, condition in LLM_ITEMS:
             row = tables[(model, condition)].loc[pid]
-            items.append((model, condition, str(row["raw_output"]).strip(), int(row["reply_words"]), np.nan))
+            items.append((model, condition, str(row["raw_output"]), bool(row.get("truncated", False)), np.nan))
         for position, index in enumerate(rng.permutation(len(items)), start=1):
-            source, condition, text, words, score = items[index]
+            source, condition, raw, truncated, score = items[index]
+            cleaned = clean_reply(raw, truncated=truncated)
             item_id = _new_id(rng, used)
             key_rows.append({"item_id": item_id, "post_id": pid, "post_ref": refs[pid], "source": source,
-                             "condition": condition, "position": position, "reply_words": words,
+                             "condition": condition, "position": position, "reply_words": cleaned.words,
+                             "reply_words_raw": len(raw.split()), "clean_ops": ";".join(cleaned.ops),
                              "reply_score": score})
-            text_rows.append({"item_id": item_id, "reply": text})
+            text_rows.append({"item_id": item_id, "reply": cleaned.text})
     return pd.DataFrame(key_rows), pd.DataFrame(text_rows)
 
 

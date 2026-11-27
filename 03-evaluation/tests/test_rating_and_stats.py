@@ -131,3 +131,18 @@ def test_agreement():
 ])
 def test_interpret_oracle(mean, inter, expected):
     assert interpret_oracle(mean, inter, 0.5) == expected
+
+
+def test_build_items_cleans_every_source_the_same_way():
+    posts = pd.DataFrame({"post_id": ["p1"]})
+    community = pd.DataFrame({"post_id": ["p1"], "reply_body": ["Uy, kaya mo yan 😊"], "reply_score": [5]})
+    long = " ".join(["Isang pangungusap ito na may walong salita lang."] * 20)  # 160 words
+    replies = {(m, c): pd.DataFrame({"post_id": ["p1"], "raw_output": [f"Okay, so {long}"], "truncated": [False]})
+               for m in ("gemma", "sealion") for c in ("P0", "P-Oracle")}
+    key, texts = build_items(posts, community, replies, seed=1)
+    merged = key.merge(texts, on="item_id").set_index("source")
+    assert merged.loc["community", "reply"] == "Kaya mo yan"
+    assert merged.loc["community", "clean_ops"] == "emoji;opener"
+    llm = merged.drop(index="community")
+    assert (llm["reply_words"] <= 110).all() and (llm["reply_words_raw"] == 162).all()
+    assert llm["reply"].str.startswith("Isang").all() and (llm["clean_ops"] == "opener;trimmed").all()

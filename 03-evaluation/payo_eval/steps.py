@@ -272,7 +272,7 @@ def rating_sheets(force: bool = False) -> None:
     gold = load.labels(paths)
     outputs = load_outputs(paths.gold)
     ok = outputs[(outputs["task"].isin(["advice-p0", "advice-oracle"])) & (outputs["error"].isna() | (outputs["error"] == ""))]
-    replies = {(m, c): g[["post_id", "raw_output", "reply_words"]] for (m, c), g in ok.groupby(["model", "condition"])}
+    replies = {(m, c): g[["post_id", "raw_output", "truncated"]] for (m, c), g in ok.groupby(["model", "condition"])}
     have_all = set(gold["post_id"])
     for table in replies.values():
         have_all &= set(table["post_id"])
