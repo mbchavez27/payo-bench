@@ -88,7 +88,9 @@ uv run python 02-llm/scripts/run.py --profile full --task all --model both --var
 
 This works with any **RTX 30-series or newer** card that has **8–11 GB**. `auto` picks **FP8 weight-only** because the VRAM is under 11 GB. That is the study precision: report it as "FP8 weight-only (vLLM)". Cards older than RTX 30 (GTX, RTX 20xx, T4) and cards under 8 GB are stopped by `--check`.
 
-**Windows:** vLLM needs WSL2. Once, in PowerShell as admin, run `wsl --install -d Ubuntu-24.04` and restart. Install the normal NVIDIA Windows driver; don't install a Linux driver inside WSL. In Ubuntu, `nvidia-smi` should show the card. Then install uv (`curl -LsSf https://astral.sh/uv/install.sh | sh`), clone the repo **inside the Linux home folder** (not `/mnt/c`, which is slow), and continue below.
+**Windows:** vLLM needs WSL2. Once, in PowerShell as admin, run `wsl --install -d Ubuntu-24.04` and restart. Install the normal NVIDIA Windows driver; don't install a Linux driver inside WSL. In Ubuntu, `nvidia-smi` should show the card. Then install uv (`curl -LsSf https://astral.sh/uv/install.sh | sh`), clone the repo **inside the Linux home folder** (`cd ~ && git clone …`, not under `/mnt/c`, which is slow and has broken vLLM's startup on the team's PC), copy `.env` and `advice_pairs.parquet` into it, and continue below.
+
+The `full` profile sets `enforce_eager = true` and `max_num_seqs = 16` (`config.toml`). They change only vLLM's working memory, not the weights, precision, context length or decoding, and are what lets FP8 Gemma-3-4B fit its 8k KV cache on an 8 GB card. Both are saved under `engine` in `run_record.json`.
 
 ```bash
 uv sync --extra full && cp .env.example .env       # HF_TOKEN; accept the Gemma license on Hugging Face first
@@ -113,6 +115,7 @@ If something fails:
 | Message | Fix |
 | --- | --- |
 | `only X of Y GB free ... pass --gpu-mem 0.8` | The display or another app uses VRAM. Close browsers and games, or pass the suggested `--gpu-mem` on **every** command |
+| `Engine core initialization failed`, with `determine_available_memory` / `_initialize_kv_caches` or "No available memory for the cache blocks" above it | Not enough VRAM left for the 8k KV cache. Close every other GPU app, rerun with the highest `--gpu-mem` the check accepts, then `rm -rf /tmp/payo-trial` and retry. If it still fails, use `--precision bnb4` for **every** run and log it in `02-llm/README.md` |
 | CUDA out of memory while loading | Rerun with `--gpu-mem 0.85`. If it still fails, move the files in `02-llm/gold/` away and use `--precision bnb4` (4-bit) for **every** run; log it in `02-llm/README.md` |
 | `already has outputs at precision ...` | One file got two precisions. Use the same `--precision` as before, or move the file away to start over |
 | `gated repo` / 401 | Accept the Gemma license on Hugging Face with the account whose token is in `.env` |

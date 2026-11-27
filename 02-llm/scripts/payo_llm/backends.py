@@ -161,32 +161,50 @@ class OllamaBackend:
         return {"ollama": response.json().get("version", "unknown") if response.ok else "unknown"}
 
 
+def vllm_engine_args(hf_id: str, revision: str, precision: str, max_model_len: int,
+                     gpu_memory_utilization: float, seed: int, enforce_eager: bool = False,
+                     max_num_seqs: int = 256) -> dict[str, Any]:
+    """
+    Keyword arguments for vllm.LLM.
+
+    enforce_eager and max_num_seqs change only vLLM's working memory (no CUDA graphs or torch.compile, fewer
+    sequences in flight), not the weights, precision, context length or decoding. They let FP8 Gemma-3-4B
+    fit its 8k-token KV cache on an 8 GB card, where the memory-profiling step fails otherwise.
+    """
+    kwargs: dict[str, Any] = {
+        "model": hf_id,
+        "revision": revision,
+        "tokenizer_revision": revision,
+        "dtype": "bfloat16",
+        "max_model_len": max_model_len,
+        "gpu_memory_utilization": gpu_memory_utilization,
+        "limit_mm_per_prompt": {"image": 0},  # text-only study: no image budget
+        "seed": seed,
+        "enforce_eager": enforce_eager,
+        "max_num_seqs": max_num_seqs,
+    }
+    if precision == "fp8":
+        kwargs["quantization"] = "fp8"
+    elif precision == "bnb4":
+        kwargs["quantization"] = "bitsandbytes"
+    return kwargs
+
+
 class VLLMBackend:
     """vLLM engine on a CUDA GPU (full run). vLLM is imported here so the Mac never needs it."""
 
     name = "vllm"
 
     def __init__(self, hf_id: str, revision: str, precision: str, max_model_len: int,
-                 gpu_memory_utilization: float, seed: int) -> None:
+                 gpu_memory_utilization: float, seed: int, enforce_eager: bool = False,
+                 max_num_seqs: int = 256) -> None:
         from vllm import LLM  # noqa: PLC0415  (Linux-only dependency)
 
         self.precision = precision
         self.max_model_len = max_model_len
         self.model_ref = f"{hf_id}@{revision}"
-        kwargs: dict[str, Any] = {
-            "model": hf_id,
-            "revision": revision,
-            "tokenizer_revision": revision,
-            "dtype": "bfloat16",
-            "max_model_len": max_model_len,
-            "gpu_memory_utilization": gpu_memory_utilization,
-            "limit_mm_per_prompt": {"image": 0},  # text-only study: no image budget
-            "seed": seed,
-        }
-        if precision == "fp8":
-            kwargs["quantization"] = "fp8"
-        elif precision == "bnb4":
-            kwargs["quantization"] = "bitsandbytes"
+        kwargs = vllm_engine_args(hf_id, revision, precision, max_model_len, gpu_memory_utilization, seed,
+                                  enforce_eager, max_num_seqs)
         self.llm = LLM(**kwargs)
         self.tokenizer = self.llm.get_tokenizer()
         self.chat_template = getattr(self.tokenizer, "chat_template", None)

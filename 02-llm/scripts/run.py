@@ -118,7 +118,13 @@ def make_backend(cfg: dict[str, Any], profile: dict[str, Any], model: str, preci
     if profile["backend"] == "ollama":
         return OllamaBackend(spec["ollama_tag"], profile["host"], profile["num_ctx"])
     return VLLMBackend(spec["hf_id"], spec["hf_revision"], precision or "bf16", profile["max_model_len"],
-                       profile["gpu_memory_utilization"], cfg["seed"])
+                       profile["gpu_memory_utilization"], cfg["seed"], **engine_options(profile))
+
+
+def engine_options(profile: dict[str, Any]) -> dict[str, Any]:
+    """vLLM memory options from the profile (defaults are vLLM's own)."""
+    return {"enforce_eager": bool(profile.get("enforce_eager", False)),
+            "max_num_seqs": int(profile.get("max_num_seqs", 256))}
 
 
 def build_jobs(task: str, posts: list[Post], schema: Schema, template: PromptTemplate,
@@ -315,6 +321,9 @@ def run_model(args: argparse.Namespace, cfg: dict[str, Any], model: str) -> None
             "posts_file": str(args.posts or profile["oracle_grid_posts" if grid else "posts"]),
             "n_posts": len(posts),
             "versions": backend.versions(),
+            **({"engine": {"max_model_len": profile["max_model_len"],
+                           "gpu_memory_utilization": profile["gpu_memory_utilization"],
+                           **engine_options(profile)}} if profile["backend"] == "vllm" else {}),
         }, run=",".join(args.tasks) + ("+variance" if args.variance else ""))
     finally:
         backend.close()

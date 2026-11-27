@@ -2,7 +2,7 @@
 
 import pytest
 
-from payo_llm.backends import Decoding, OllamaBackend, check_gpu, select_precision
+from payo_llm.backends import Decoding, OllamaBackend, check_gpu, select_precision, vllm_engine_args
 from payo_llm.records import existing_precisions
 
 TAG = "hf.co/aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF:Q8_0"
@@ -97,3 +97,19 @@ def test_existing_precisions(tmp_path):
     assert existing_precisions(path) == set()
     path.write_text('{"precision": "fp8"}\n\n{"precision": "fp8"}\n', encoding="utf-8")
     assert existing_precisions(path) == {"fp8"}
+
+
+def test_vllm_engine_args_keep_study_settings_and_add_memory_options():
+    args = vllm_engine_args("google/gemma-3-4b-it", "abc", "fp8", 8192, 0.85, 42, enforce_eager=True, max_num_seqs=16)
+    assert (args["quantization"], args["max_model_len"], args["dtype"], args["seed"]) == ("fp8", 8192, "bfloat16", 42)
+    assert (args["enforce_eager"], args["max_num_seqs"], args["gpu_memory_utilization"]) == (True, 16, 0.85)
+    assert "quantization" not in vllm_engine_args("m", "r", "bf16", 8192, 0.9, 42)
+
+
+def test_full_profile_sets_the_8gb_memory_options():
+    import tomllib
+    from pathlib import Path
+
+    cfg = tomllib.loads((Path(__file__).resolve().parents[1] / "config.toml").read_text(encoding="utf-8"))
+    full = cfg["profiles"]["full"]
+    assert full["enforce_eager"] is True and full["max_num_seqs"] == 16 and full["max_model_len"] == 8192
