@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from payo_llm.cleanup import DASH, EMOJI, HONESTLY, MARKDOWN, QUOTES, SIGNOFF
+from payo_llm.cleanup import DASH, EMOJI, HONESTLY, MARKDOWN, QUOTES, SERIOUSLY, SIGNOFF
 from payo_llm.records import KEY_FIELDS
 from payo_llm.schema import Schema
 
@@ -211,7 +211,7 @@ def style_health(outputs: pd.DataFrame, community_text: pd.Series) -> pd.DataFra
     Returns:
         One row per source (model x condition, grid as one row, community on the same posts): the most common
         two-word opener and first word with their shares, the share of replies with an emoji, markdown
-        emphasis, an en/em dash, "di ba", a double space, curly quotes, a sentence-initial "Honestly," or a closing
+        emphasis, an en/em dash, "di ba", a double space, curly quotes, a sentence-initial "Honestly," or "Seriously," or a closing
         stock sign-off, persona-claim matches, and the Filipino function-word share of tokens.
     """
     grid = _ok(outputs, "advice-oracle-grid").assign(condition="P-Oracle grid")
@@ -237,6 +237,7 @@ def style_health(outputs: pd.DataFrame, community_text: pd.Series) -> pd.DataFra
             "double_space_share": _share(texts, DOUBLE_SPACE),
             "curly_quote_share": _share(texts, CURLY),
             "honestly_share": _share(texts, HONESTLY),
+            "seriously_share": _share(texts, SERIOUSLY),
             "signoff_share": texts.map(_ends_with_signoff).mean() if len(texts) else math.nan,
             "persona_n": sum(len(PERSONA.findall(t.translate(QUOTES))) for t in texts),  # curly apostrophes too
             "tl_word_share": _tl_share(texts),
@@ -262,7 +263,7 @@ def style_flags(style: pd.DataFrame) -> list[str]:
     community = style[style["source"].str.startswith("community")]
     bases = {col: community[col].iloc[0] if len(community) else 0.0
              for col in ("emoji_share", "markdown_share", "dash_share", "double_space_share", "curly_quote_share",
-                         "honestly_share", "signoff_share")}
+                         "honestly_share", "seriously_share", "signoff_share")}
     base = bases["emoji_share"]
     out = []
     for row in style[~style["source"].str.startswith("community")].itertuples():
@@ -275,6 +276,7 @@ def style_flags(style: pd.DataFrame) -> list[str]:
         for col, what in (("markdown_share", "markdown emphasis"), ("dash_share", "an en/em dash"),
                           ("double_space_share", "a double space"), ("curly_quote_share", "curly quotes"),
                           ("honestly_share", "a sentence-initial 'Honestly,'"),
+                          ("seriously_share", "a sentence-initial 'Seriously,'"),
                           ("signoff_share", "a stock sign-off as the last sentence")):
             if getattr(row, col) > bases[col] + MAX_EMOJI_EXCESS:
                 out.append(f"{row.source}: {getattr(row, col):.0%} of replies have {what} (community {bases[col]:.0%}).")

@@ -1,5 +1,6 @@
 """
-Fixed, pre-registered cleanup of every reply shown to raters (analysis plan v1.8; rules 2-5, 7 and 9 added in v1.9).
+Fixed, pre-registered cleanup of every reply shown to raters (analysis plan v1.8; rules 2-5, 7 and 9 added in v1.9;
+rule 7 extended to "Seriously," in v1.10).
 
 The 4B models ignore length and opener instructions (pilot prompts v2-v4), so the reply text is
 normalized in code, the same way for every source (Gemma, SEA-LION and the community reply), so that the
@@ -12,7 +13,7 @@ cleanup itself cannot reveal the source:
 4. Straighten curly quotes (‘ ’ -> ', “ ” -> ").
 5. Collapse repeated spaces, drop spaces at line ends, and keep at most one blank line between paragraphs.
 6. Remove leading interjections followed by punctuation ("Uy,", "Naku!", "Okay, so", ...), then capitalize.
-7. Remove a sentence-initial "Honestly," and capitalize what follows.
+7. Remove a sentence-initial "Honestly," or "Seriously," and capitalize what follows.
 8. If the reply was cut off by max_new_tokens, drop the unfinished last sentence.
 9. Drop closing sentences that are only a stock sign-off ("Good luck!", "Good luck with your shopping!",
    "Kaya mo 'yan!", "Laban lang!"), as long as other text remains.
@@ -39,6 +40,7 @@ SPACED_DASH = re.compile(r"\s+[\u2013\u2014]\s+")
 DASH = re.compile("[\u2013\u2014]")
 QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
 HONESTLY = re.compile(r"(?:^|(?<=[.!?…] ))honestly,\s+(\w)", re.IGNORECASE | re.MULTILINE)
+SERIOUSLY = re.compile(r"(?:^|(?<=[.!?…] ))seriously,\s+(\w)", re.IGNORECASE | re.MULTILINE)
 # A whole closing sentence that is only a stock sign-off, with an optional short tail without a comma
 # ("with your shopping") and an optional address ("OP", "po"); anything longer is content and is kept.
 SIGNOFF = re.compile(
@@ -73,7 +75,7 @@ def clean_reply(text: str, truncated: bool = False, max_words: int = MAX_WORDS) 
 
     Returns:
         The cleaned text, its word count and the operations applied
-        (emoji, markdown, dash, quotes, spacing, opener, honestly, unfinished, signoff, trimmed, hard_cut).
+        (emoji, markdown, dash, quotes, spacing, opener, honestly, seriously, unfinished, signoff, trimmed, hard_cut).
     """
     ops = []
     out = text.strip()
@@ -99,6 +101,8 @@ def clean_reply(text: str, truncated: bool = False, max_words: int = MAX_WORDS) 
         out = out[:1].upper() + out[1:]
     if (frank := HONESTLY.sub(lambda m: m.group(1).upper(), out)) != out:
         out, _ = frank, ops.append("honestly")
+    if (plain := SERIOUSLY.sub(lambda m: m.group(1).upper(), out)) != out:
+        out, _ = plain, ops.append("seriously")
     if truncated and (ends := _sentence_ends(out)) and ends[-1] < len(out.rstrip()):
         out, _ = out[:ends[-1]], ops.append("unfinished")
     signoff = False

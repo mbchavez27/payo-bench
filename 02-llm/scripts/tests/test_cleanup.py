@@ -1,4 +1,4 @@
-"""Fixed reply cleanup used for every rater-facing reply (analysis plan v1.8, v1.9)."""
+"""Fixed reply cleanup used for every rater-facing reply (analysis plan v1.8, v1.9, v1.10)."""
 
 from payo_llm.cleanup import clean_reply
 
@@ -78,3 +78,9 @@ def test_drops_stock_signoff_sentences_but_keeps_content():
     kept = "Mag-ipon ka muna. Good luck with the shopping, I hope he loves it!"
     assert clean_reply(kept).text == kept
     assert clean_reply("Good luck!").text == "Good luck!"  # never empties a reply
+
+
+def test_removes_sentence_initial_seriously_only():
+    out = clean_reply("Seriously, ang hirap. Pero seriously, kaya mo. Take it seriously.")
+    assert out.text == "Ang hirap. Pero seriously, kaya mo. Take it seriously." and out.ops == ("seriously",)
+    assert clean_reply("Uy, gets ko. Seriously, 2024 was big.").text == "Gets ko. 2024 was big."

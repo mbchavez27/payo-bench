@@ -222,14 +222,16 @@ def test_style_health_flags_markdown_and_dashes_and_reports_diba():
 
 
 def test_style_health_flags_spacing_quotes_honestly_and_signoff():
-    texts = ["Honestly, ok lang.  Good luck!", "Kaya mo \u2018yan.  Kaya mo 'yan!", "Ayos. Honestly, ayos.", "Ok."]
+    texts = ["Honestly, ok lang.  Good luck!", "Kaya mo \u2018yan.  Kaya mo 'yan!", "Ayos. Honestly, ayos.",
+             "Seriously, ok."]
     outputs = pd.DataFrame([{**adv(str(i), 5), "raw_output": t} for i, t in enumerate(texts)])
     style = style_health(outputs, pd.Series({str(i): "ok lang" for i in range(4)})).set_index("source")
     p0 = style.loc["gemma P0"]
     assert (p0["double_space_share"], p0["curly_quote_share"]) == (0.5, 0.25)
-    assert (p0["honestly_share"], p0["signoff_share"]) == (0.5, 0.5)
+    assert (p0["honestly_share"], p0["seriously_share"], p0["signoff_share"]) == (0.5, 0.25, 0.5)
     text = " ".join(style_flags(style.reset_index()))
     assert "a double space" in text and "a stock sign-off" in text and "'Honestly,'" in text
+    assert "'Seriously,'" in text
     assert "curly quotes" in text
 
 
