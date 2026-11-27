@@ -4,7 +4,7 @@ and says what a person has to do next.
 
     uv run python pipeline.py                 # Mac or GPU PC: run what's possible, print the next step
     uv run python pipeline.py --gpu-mem 0.8   # GPU PC: pass vLLM options through to every model run
-    uv run python pipeline.py --no-trial      # skip the 3-post trial before the first model run
+    uv run python pipeline.py --no-trial      # skip the trial (3 posts + 1 P-Oracle grid post) before the first model run
 
 Stages, in order (each one is skipped when its output already exists):
   1. silver      01-preprocessing notebook: bronze -> silver/advice_pairs.parquet, checked against MANIFEST.json
@@ -100,7 +100,7 @@ def outputs(pattern: str) -> int:
 
 
 def stage_models(extra: list[str], trial: bool) -> None:
-    """All GPU work, in one session: check, 3-post trial, recognition + P0, variance, P-Oracle grid. All resume."""
+    """All GPU work, in one session: check, trial (3 posts + 1 grid post), recognition + P0, variance, P-Oracle grid. All resume."""
     base = ["uv", "run", "python", "02-llm/scripts/run.py", "--profile", "full", "--model", "both", *extra]
     if not has_cuda():
         say("3. GPU: no NVIDIA GPU here")
@@ -113,8 +113,10 @@ def stage_models(extra: list[str], trial: bool) -> None:
     run([*base, "--check"])
     run1 = outputs("emotion-recognition/predictions_*.jsonl") < 2 or outputs("advice-generation/replies_*_p0.jsonl") < 2
     if run1 and trial and not TRIAL_DIR.exists():
-        say("3. trial: 3 posts into /tmp/payo-trial (throwaway), to confirm both models load and fit")
+        say("3. trial: 3 posts + 1 grid post into /tmp/payo-trial (throwaway), to confirm both models load and "
+            "fit and every prompt (recognition, P0, P-Oracle) runs")
         run([*base, "--task", "recognition,advice-p0", "--limit", "3", "--out-dir", str(TRIAL_DIR)])
+        run([*base, "--task", "advice-oracle-grid", "--limit", "1", "--out-dir", str(TRIAL_DIR)])
     say("3. recognition + P0 advice (resumes if interrupted). Don't open the outputs until finalize-labels")
     run([*base, "--task", "recognition,advice-p0"])
     run([*base, "--task", "recognition,advice-p0", "--variance"])
@@ -129,7 +131,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--gpu-mem", help="passed to run.py (use the same value for every run)")
     parser.add_argument("--precision", choices=["auto", "bf16", "fp8", "bnb4"], help="passed to run.py")
-    parser.add_argument("--no-trial", action="store_true", help="skip the 3-post trial run")
+    parser.add_argument("--no-trial", action="store_true", help="skip the trial run (3 posts + 1 grid post)")
     args = parser.parse_args()
     extra = [*(["--gpu-mem", args.gpu_mem] if args.gpu_mem else []),
              *(["--precision", args.precision] if args.precision else [])]

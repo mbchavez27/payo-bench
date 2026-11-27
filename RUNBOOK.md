@@ -16,7 +16,7 @@ Shorthand: `wf` = `uv run python 03-evaluation/workflow.py`.
 
 ## Blindness rule
 
-Model outputs (`02-llm/gold/**/*.jsonl`) are gitignored. Whoever runs the GPU does not open, print or share them, and does not commit them, until step 4.3 (`finalize-labels`) has run. `run.py` prints only counts and timing. Annotators label from the post alone.
+Model outputs (`02-llm/gold/**/*.jsonl`, and the trial in `/tmp/payo-trial`, which uses study posts) are gitignored or outside the repo. Whoever runs the GPU does not open, print or share them, and does not commit them, until step 4.3 (`finalize-labels`) has run. `run.py` prints only counts and timing. Annotators label from the post alone.
 
 ## 0. Once
 
@@ -45,10 +45,10 @@ uv run python pipeline.py                                     # add e.g. --gpu-m
 
 `pipeline.py` runs, in order:
 1. the GPU check;
-2. a 3-post trial in a throwaway folder;
+2. a trial in a throwaway folder: 3 posts for recognition and P0, plus 1 post of the P-Oracle grid (96 replies per model), so every prompt runs on the GPU within the first minutes;
 3. recognition + P0 for both models;
 4. their variance runs;
-5. the **P-Oracle grid**: each candidate × every emotion × concept, about 14.8k replies, the longest step.
+5. the **P-Oracle grid**: each candidate × every emotion × concept, about 13.6k replies, the longest step.
 
 Every step resumes if interrupted. Setup and fixes are in "Small GPU" in `02-llm/scripts/README.md`.
 

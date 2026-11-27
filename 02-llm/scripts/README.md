@@ -96,13 +96,16 @@ nvidia-smi                                          # card, driver, CUDA 12.x
 uv run python 02-llm/scripts/run.py --profile full --check --model both
 #   prints the GPU, compute capability, total/free VRAM and the precision, and stops on a problem
 
-# Trial: 3 posts into a throwaway folder (doesn't touch 02-llm/gold). Confirms both models load and fit.
+# Trial: 3 posts + 1 grid post into a throwaway folder (doesn't touch 02-llm/gold). Confirms both models
+# load and fit and that every prompt runs. These are study posts: don't open the trial outputs either.
 uv run python 02-llm/scripts/run.py --profile full --task recognition,advice-p0 --model both \
     --limit 3 --out-dir /tmp/payo-trial
+uv run python 02-llm/scripts/run.py --profile full --task advice-oracle-grid --model both \
+    --limit 1 --out-dir /tmp/payo-trial
 # Real runs, all before annotation (rerunning resumes). The root pipeline.py runs exactly these:
 uv run python 02-llm/scripts/run.py --profile full --task recognition,advice-p0 --model both
 uv run python 02-llm/scripts/run.py --profile full --task recognition,advice-p0 --model both --variance
-uv run python 02-llm/scripts/run.py --profile full --task advice-oracle-grid --model both   # 71 posts x 104, the longest
+uv run python 02-llm/scripts/run.py --profile full --task advice-oracle-grid --model both   # 71 posts x 96, the longest
 ```
 
 If something fails:
