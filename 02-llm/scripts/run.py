@@ -35,10 +35,10 @@ PROMPT_DIR = ROOT / "02-llm" / "prompts"
 TASKS = ("recognition", "advice-p0", "advice-oracle", "advice-oracle-grid")
 DEFAULT_TASKS = ("recognition", "advice-p0", "advice-oracle")  # what --task all means
 PROMPT_FILES = {
-    "recognition": "emotion-recognition_v3.md",
-    "advice-p0": "advice-p0_v2.md",
-    "advice-oracle": "advice-oracle_v2.md",
-    "advice-oracle-grid": "advice-oracle_v2.md",  # the same prompt, for every emotion x concept (v1.4)
+    "recognition": "emotion-recognition_v4.md",
+    "advice-p0": "advice-p0_v5.md",
+    "advice-oracle": "advice-oracle_v5.md",
+    "advice-oracle-grid": "advice-oracle_v5.md",  # the same prompt, for every emotion x concept (v1.4)
 }
 CONDITIONS = {"recognition": "none", "advice-p0": "P0", "advice-oracle": "P-Oracle"}
 

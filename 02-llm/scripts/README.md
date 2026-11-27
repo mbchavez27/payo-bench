@@ -4,9 +4,9 @@ These scripts run **only** the two study tasks on Gemma and SEA-LION:
 
 | Task | `--task` | Prompt |
 | --- | --- | --- |
-| A. Emotion recognition | `recognition` | `prompts/emotion-recognition_v3.md` |
-| B. Advice, baseline | `advice-p0` | `prompts/advice-p0_v2.md` |
-| B. Advice, oracle | `advice-oracle` | `prompts/advice-oracle_v2.md` (adjudicated gold labels only, never Task A output) |
+| A. Emotion recognition | `recognition` | `prompts/emotion-recognition_v4.md` |
+| B. Advice, baseline | `advice-p0` | `prompts/advice-p0_v5.md` |
+| B. Advice, oracle | `advice-oracle` | `prompts/advice-oracle_v5.md` (adjudicated gold labels only, never Task A output) |
 
 There are two profiles:
 
@@ -53,7 +53,7 @@ You can run it after any subset of tasks; tasks that haven't run yet are shown a
 
 - completeness and errors;
 - Task A validity, the predicted-label spread (label collapse) and confidence spread;
-- reply length against the 180-word cap, truncation, and the community reply length on the same posts;
+- reply length against the 110-word cap of the v2 advice prompts (and replies under half the 90-word target), truncation, and the community reply length on the same posts; an `oracle_grid/` folder, if present, is summarized as one "P-Oracle grid" row per model;
 - the P-Oracle − P0 length gap;
 - latency and prompt length against `num_ctx`;
 - from `pilot_annotations.csv`: retention, the silver posts needed for 300, per-label balance with a pool estimate against the merge threshold, and annotator disagreements (when a post has more than one annotator row).

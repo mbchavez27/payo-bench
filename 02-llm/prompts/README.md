@@ -25,10 +25,17 @@ Each file has YAML front-matter (`task`, `version`, `placeholders`, `output_form
 | --------------------------- | -------------------------------------------- | --------------- |
 | `emotion-recognition_v1.md` | Task A: emotion + cultural concept + confidence (pilot only; superseded) | Gemma, SEA-LION |
 | `emotion-recognition_v2.md` | Task A, as v1 plus concept parsing rule (pilot 2026-11-23; superseded) | Gemma, SEA-LION |
-| `emotion-recognition_v3.md` | Task A, schema v2 (konsensya added, pakikisama_strain retired) | Gemma, SEA-LION |
+| `emotion-recognition_v3.md` | Task A, schema v2 (konsensya added, pakikisama_strain retired; pilot 2026-11-27; superseded) | Gemma, SEA-LION |
+| `emotion-recognition_v4.md` | Task A, as v3 plus a rule that `none_practical` (not `none`) is the no-emotion id | Gemma, SEA-LION |
 | `advice-p0_v1.md`           | Task B, baseline: post only (~150w, pilot only; superseded) | Gemma, SEA-LION |
-| `advice-p0_v2.md`           | Task B, baseline: post only (calibrated to ~90 words, max 110) | Gemma, SEA-LION |
+| `advice-p0_v2.md`           | Task B, baseline: post only (calibrated to ~90 words, max 110; pilot 2026-11-27; superseded) | Gemma, SEA-LION |
+| `advice-p0_v3.md`           | Task B, baseline: as v2 with a firm 110-word cap, no formula opener/sign-off/emoji, no persona claims (pilot 2026-11-27; superseded) | Gemma, SEA-LION |
+| `advice-p0_v4.md`           | Task B, baseline: one paragraph of 4–5 sentences, Taglish first sentence (pilot 2026-11-27, stopped after 16 replies; superseded) | Gemma, SEA-LION |
+| `advice-p0_v5.md`           | Task B, baseline: v2 wording plus a no-emoji / no-persona line. Length and openers are normalized by `scripts/payo_llm/cleanup.py` on every rater-facing reply | Gemma, SEA-LION |
 | `advice-oracle_v1.md`       | Task B, oracle: post + gold emotion and concept (~150w; superseded) | Gemma, SEA-LION |
-| `advice-oracle_v2.md`       | Task B, oracle: post + gold emotion and concept (calibrated to ~90 words, max 110) | Gemma, SEA-LION |
+| `advice-oracle_v2.md`       | Task B, oracle: post + gold emotion and concept (calibrated to ~90 words, max 110; superseded) | Gemma, SEA-LION |
+| `advice-oracle_v3.md`       | Task B, oracle: advice-p0_v3 plus the unchanged gold-label Background block (superseded) | Gemma, SEA-LION |
+| `advice-oracle_v4.md`       | Task B, oracle: advice-p0_v4 plus the unchanged gold-label Background block (never run; superseded) | Gemma, SEA-LION |
+| `advice-oracle_v5.md`       | Task B, oracle: advice-p0_v5 plus the unchanged gold-label Background block | Gemma, SEA-LION |
 
 Scale: ~300 posts × 2 models = 600 recognition outputs; ~300 posts × 2 models × 2 conditions = 1,200 replies.
