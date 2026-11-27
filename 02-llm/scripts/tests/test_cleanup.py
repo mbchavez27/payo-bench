@@ -59,3 +59,22 @@ def test_dashes_become_commas_or_hyphens():
 def test_community_style_reply_without_tells_is_unchanged():
     text = "Kausapin mo muna siya ng maayos. If ayaw niya, then leave - you deserve better."
     assert clean_reply(text).text == text and clean_reply(text).ops == ()
+
+
+def test_straightens_quotes_and_collapses_spacing():
+    out = clean_reply("Kaya mo \u2018yan.  Talaga.   \n\n\n\u201cOk\u201d lang.")
+    assert out.text == "Kaya mo 'yan. Talaga.\n\n\"Ok\" lang." and out.ops == ("quotes", "spacing")
+
+
+def test_removes_sentence_initial_honestly_only():
+    out = clean_reply("Honestly, ang hirap. Pero honestly, kaya mo. I honestly think so.")
+    assert out.text == "Ang hirap. Pero honestly, kaya mo. I honestly think so." and out.ops == ("honestly",)
+    assert clean_reply("Mahirap. Honestly, it is.").text == "Mahirap. It is."
+
+
+def test_drops_stock_signoff_sentences_but_keeps_content():
+    out = clean_reply("Mag-ipon ka muna. Good luck with your shopping! Kaya mo 'yan, OP!")
+    assert out.text == "Mag-ipon ka muna." and out.ops == ("signoff",)
+    kept = "Mag-ipon ka muna. Good luck with the shopping, I hope he loves it!"
+    assert clean_reply(kept).text == kept
+    assert clean_reply("Good luck!").text == "Good luck!"  # never empties a reply

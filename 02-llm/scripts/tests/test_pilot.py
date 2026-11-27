@@ -219,3 +219,20 @@ def test_style_health_flags_markdown_and_dashes_and_reports_diba():
     text = " ".join(style_flags(style.reset_index()))
     assert "50% of replies have markdown emphasis" in text and "75% of replies have an en/em dash" in text
     assert "di ba" not in text  # reported, never flagged
+
+
+def test_style_health_flags_spacing_quotes_honestly_and_signoff():
+    texts = ["Honestly, ok lang.  Good luck!", "Kaya mo \u2018yan.  Kaya mo 'yan!", "Ayos. Honestly, ayos.", "Ok."]
+    outputs = pd.DataFrame([{**adv(str(i), 5), "raw_output": t} for i, t in enumerate(texts)])
+    style = style_health(outputs, pd.Series({str(i): "ok lang" for i in range(4)})).set_index("source")
+    p0 = style.loc["gemma P0"]
+    assert (p0["double_space_share"], p0["curly_quote_share"]) == (0.5, 0.25)
+    assert (p0["honestly_share"], p0["signoff_share"]) == (0.5, 0.5)
+    text = " ".join(style_flags(style.reset_index()))
+    assert "a double space" in text and "a stock sign-off" in text and "'Honestly,'" in text
+    assert "curly quotes" in text
+
+
+def test_persona_claims_with_curly_apostrophes_are_counted():
+    outputs = pd.DataFrame([{**adv("a", 5), "raw_output": "From a girl’s perspective, ok. I’ve been there."}])
+    assert style_health(outputs, pd.Series(dtype=str)).set_index("source").loc["gemma P0", "persona_n"] == 2

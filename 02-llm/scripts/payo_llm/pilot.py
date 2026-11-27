@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from payo_llm.cleanup import DASH, EMOJI, MARKDOWN
+from payo_llm.cleanup import DASH, EMOJI, HONESTLY, MARKDOWN, QUOTES, SIGNOFF
 from payo_llm.records import KEY_FIELDS
 from payo_llm.schema import Schema
 
@@ -28,6 +28,8 @@ MAX_OVER_CAP_SHARE = 0.10
 MAX_CTX_SHARE = 0.90           # longest prompt vs the context window
 MAX_OPENER_SHARE = 0.30        # one opening phrase across replies = a style tell for raters (v1.8)
 MAX_EMOJI_EXCESS = 0.20        # emoji (and, since v1.9, markdown or dash) share above the community's
+DOUBLE_SPACE = re.compile(r"\S {2,}\S")
+CURLY = re.compile("[\u2018\u2019\u201c\u201d]")
 DIBA = re.compile(r"\bdi\s?ba\b", re.IGNORECASE)  # a tag question the models overuse; content, so reported only
 # Invented persona or presence claims (advice-*_v3.md forbids them); fixed list, whole-phrase, case-insensitive
 PERSONA = re.compile(r"\b(as an? (girl|guy|woman|man|mom|mother|dad|father|student|female|male)|(female|male|woman\'s|man\'s|girl\'s|guy\'s) perspective|we're here|we are here|"
@@ -209,7 +211,8 @@ def style_health(outputs: pd.DataFrame, community_text: pd.Series) -> pd.DataFra
     Returns:
         One row per source (model x condition, grid as one row, community on the same posts): the most common
         two-word opener and first word with their shares, the share of replies with an emoji, markdown
-        emphasis, an en/em dash or "di ba", persona-claim matches, and the Filipino function-word share of tokens.
+        emphasis, an en/em dash, "di ba", a double space, curly quotes, a sentence-initial "Honestly," or a closing
+        stock sign-off, persona-claim matches, and the Filipino function-word share of tokens.
     """
     grid = _ok(outputs, "advice-oracle-grid").assign(condition="P-Oracle grid")
     adv = pd.concat([_ok(outputs, "advice-p0"), _ok(outputs, "advice-oracle"), grid])
@@ -231,10 +234,20 @@ def style_health(outputs: pd.DataFrame, community_text: pd.Series) -> pd.DataFra
             "markdown_share": _share(texts, MARKDOWN),
             "dash_share": _share(texts, DASH),
             "diba_share": _share(texts, DIBA),
-            "persona_n": sum(len(PERSONA.findall(t)) for t in texts),
+            "double_space_share": _share(texts, DOUBLE_SPACE),
+            "curly_quote_share": _share(texts, CURLY),
+            "honestly_share": _share(texts, HONESTLY),
+            "signoff_share": texts.map(_ends_with_signoff).mean() if len(texts) else math.nan,
+            "persona_n": sum(len(PERSONA.findall(t.translate(QUOTES))) for t in texts),  # curly apostrophes too
             "tl_word_share": _tl_share(texts),
         })
     return pd.DataFrame(rows)
+
+
+def _ends_with_signoff(text: str) -> bool:
+    """True when the last sentence is only a stock sign-off (the closing rule in payo_llm/cleanup.py)."""
+    parts = re.split(r"(?<=[.!?…])\s+", text.strip())
+    return len(parts) > 1 and bool(SIGNOFF.fullmatch(parts[-1]))
 
 
 def _share(texts: pd.Series, pattern: re.Pattern) -> float:
@@ -248,7 +261,8 @@ def style_flags(style: pd.DataFrame) -> list[str]:
         return []
     community = style[style["source"].str.startswith("community")]
     bases = {col: community[col].iloc[0] if len(community) else 0.0
-             for col in ("emoji_share", "markdown_share", "dash_share")}
+             for col in ("emoji_share", "markdown_share", "dash_share", "double_space_share", "curly_quote_share",
+                         "honestly_share", "signoff_share")}
     base = bases["emoji_share"]
     out = []
     for row in style[~style["source"].str.startswith("community")].itertuples():
@@ -258,7 +272,10 @@ def style_flags(style: pd.DataFrame) -> list[str]:
             out.append(f"{row.source}: {row.top_first_word_share:.0%} of replies start with '{row.top_first_word}'.")
         if row.emoji_share > base + MAX_EMOJI_EXCESS:
             out.append(f"{row.source}: {row.emoji_share:.0%} of replies have an emoji (community {base:.0%}).")
-        for col, what in (("markdown_share", "markdown emphasis"), ("dash_share", "an en/em dash")):
+        for col, what in (("markdown_share", "markdown emphasis"), ("dash_share", "an en/em dash"),
+                          ("double_space_share", "a double space"), ("curly_quote_share", "curly quotes"),
+                          ("honestly_share", "a sentence-initial 'Honestly,'"),
+                          ("signoff_share", "a stock sign-off as the last sentence")):
             if getattr(row, col) > bases[col] + MAX_EMOJI_EXCESS:
                 out.append(f"{row.source}: {getattr(row, col):.0%} of replies have {what} (community {bases[col]:.0%}).")
         if row.persona_n:

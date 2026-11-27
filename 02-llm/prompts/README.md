@@ -31,7 +31,7 @@ Each file has YAML front-matter (`task`, `version`, `placeholders`, `output_form
 | `advice-p0_v2.md`           | Task B, baseline: post only (calibrated to ~90 words, max 110; pilot 2026-11-27; superseded) | Gemma, SEA-LION |
 | `advice-p0_v3.md`           | Task B, baseline: as v2 with a firm 110-word cap, no formula opener/sign-off/emoji, no persona claims (pilot 2026-11-27; superseded) | Gemma, SEA-LION |
 | `advice-p0_v4.md`           | Task B, baseline: one paragraph of 4–5 sentences, Taglish first sentence (pilot 2026-11-27, stopped after 16 replies; superseded) | Gemma, SEA-LION |
-| `advice-p0_v5.md`           | Task B, baseline: v2 wording plus a no-emoji / no-persona line. Length, openers, markdown emphasis and dashes (v1.9) are normalized by `scripts/payo_llm/cleanup.py` on every rater-facing reply | Gemma, SEA-LION |
+| `advice-p0_v5.md`           | Task B, baseline: v2 wording plus a no-emoji / no-persona line. Length, openers and formatting tells (markdown, dashes, quotes, spacing, "Honestly,", stock sign-offs; v1.9) are normalized by `scripts/payo_llm/cleanup.py` on every rater-facing reply | Gemma, SEA-LION |
 | `advice-oracle_v1.md`       | Task B, oracle: post + gold emotion and concept (~150w; superseded) | Gemma, SEA-LION |
 | `advice-oracle_v2.md`       | Task B, oracle: post + gold emotion and concept (calibrated to ~90 words, max 110; superseded) | Gemma, SEA-LION |
 | `advice-oracle_v3.md`       | Task B, oracle: advice-p0_v3 plus the unchanged gold-label Background block (superseded) | Gemma, SEA-LION |
