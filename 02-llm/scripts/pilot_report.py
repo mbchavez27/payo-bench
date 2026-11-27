@@ -20,9 +20,10 @@ from pathlib import Path
 import pandas as pd
 
 from payo_llm import ROOT
+from payo_llm.cleanup import clean_reply
 from payo_llm.data import SILVER_PATH, read_post_ids
 from payo_llm.pilot import (annotation_summary, advice_health, completeness, flags, load_outputs,
-                            recognition_health, render_table, timing)
+                            recognition_health, render_table, style_flags, style_health, timing)
 from payo_llm.schema import load_schema
 
 CONFIG_PATH = Path(__file__).resolve().parent / "config.toml"
@@ -45,6 +46,19 @@ def oracle_ids(sheet: pd.DataFrame) -> list[str]:
     return sorted(set(sheet.loc[keep, "post_id"].str.strip()))
 
 
+def cleaned_outputs(outputs: pd.DataFrame) -> pd.DataFrame:
+    """Advice records with raw_output and reply_words replaced by the rater-facing cleaned text."""
+    adv = outputs["task"].str.startswith("advice")
+    out = outputs.copy()
+    cleaned = [clean_reply(str(t), bool(tr)) for t, tr in zip(out.loc[adv, "raw_output"], out.loc[adv, "truncated"])]
+    out.loc[adv, "raw_output"] = [c.text for c in cleaned]
+    out.loc[adv, "reply_words"] = [c.words for c in cleaned]
+    out.loc[adv, "truncated"] = False
+    out["clean_ops"] = None
+    out.loc[adv, "clean_ops"] = [";".join(c.ops) for c in cleaned]
+    return out
+
+
 def main() -> None:
     cfg = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     profile = cfg["profiles"]["pilot"]
@@ -56,7 +70,8 @@ def main() -> None:
         columns=["post_id", "annotator", "exclude_flag", "exclude_reason", "primary_emotion", "cultural_concept",
                  "expression", "domain", "need_type"])
     silver = pd.read_parquet(SILVER_PATH, columns=["post_id", "reply_body"])
-    community_words = silver.set_index("post_id")["reply_body"].fillna("").str.split().str.len()
+    community_text = silver.set_index("post_id")["reply_body"].fillna("")
+    community_words = community_text.str.split().str.len()
 
     outputs = load_outputs(args.out_dir)
     expected = {"recognition": post_ids, "advice-p0": post_ids, "advice-oracle": oracle_ids(sheet)}
@@ -65,7 +80,9 @@ def main() -> None:
     adv_summary, adv_diff = advice_health(outputs, community_words)
     times = timing(outputs, profile["num_ctx"])
     ann = annotation_summary(sheet, schema, n_silver=len(silver), n_target=N_TARGET, min_label=MIN_LABEL)
+    style = style_health(outputs, community_text)
     warnings = flags(complete, rec_summary, adv_summary, times, ann, n_silver=len(silver), min_label=MIN_LABEL)
+    warnings += style_flags(style)
 
     lines = [
         "# Pilot report",
@@ -100,6 +117,18 @@ def main() -> None:
         lines += [render_table(adv_summary), ""]
         if not adv_diff.empty:
             lines += ["P-Oracle minus P0 words, same post (prompt-length confound):", "", render_table(adv_diff), ""]
+    if not style.empty:
+        lines += ["## Task B: style (possible source tells for raters)", "", render_table(style), ""]
+    if not adv_summary.empty:
+        cleaned = cleaned_outputs(outputs)
+        community_clean = community_text.map(lambda t: clean_reply(t).text)
+        clean_len, _ = advice_health(cleaned, community_clean.str.split().str.len())
+        clean_style = style_health(cleaned, community_clean)
+        ops = cleaned.dropna(subset=["clean_ops"]).groupby(["model", "condition"])["clean_ops"].agg(
+            lambda s: ", ".join(f"{k}: {v}" for k, v in s.str.split(";").explode().replace("", None).dropna()
+                                .value_counts().items())).reset_index()
+        lines += ["## Task B after the fixed cleanup (what raters see; `payo_llm/cleanup.py`)", "",
+                  render_table(clean_len), "", render_table(clean_style), "", render_table(ops), ""]
     lines += ["## Timing and prompt length", "", render_table(times) if not times.empty else "_nothing run yet_", ""]
 
     lines += ["## Annotations: retention and label balance", ""]

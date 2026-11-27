@@ -7,7 +7,8 @@ import pandas as pd
 import pytest
 
 from payo_llm.pilot import (advice_health, annotation_summary, completeness, flags, load_outputs,
-                            recognition_health, render_table, timing, wilson_ci)
+                            recognition_health, render_table, style_flags, style_health, timing,
+                            wilson_ci)
 from payo_llm.schema import Schema
 
 SCHEMA = Schema({
@@ -93,13 +94,13 @@ def test_advice_health_lengths_and_flags():
     community = pd.Series({"a": 40, "b": 60, "zzz": 999})
     summary, diff = advice_health(outputs, community)
     p0 = summary.set_index("source").loc["gemma P0"]
-    assert (p0["median"], p0["over_180"], p0["truncated"]) == (175, 0.5, 0.5)
+    assert (p0["median"], p0["over_cap"], p0["truncated"]) == (175, 1.0, 0.5)
     assert summary.set_index("source").loc["community (same posts)", "max"] == 60
     assert diff.iloc[0].median_diff == 25
     text = " ".join(flags(pd.DataFrame(), pd.DataFrame(), summary, pd.DataFrame(),
                           annotation_summary(sheet([]), SCHEMA, n_silver=100), n_silver=100))
     assert "gemma P0: 50% of replies hit max_new_tokens" in text
-    assert "gemma P0: 50% of replies exceed 180 words" in text
+    assert "gemma P0: 100% of replies exceed 110 words" in text
     assert "community" not in text
 
 
@@ -159,3 +160,49 @@ def test_wilson_and_render_table():
     assert render_table(pd.DataFrame()) == "_none_"
     table = render_table(pd.DataFrame({"a": [0.123, math.nan], "b": ["x|y", "z"]}))
     assert "| 0.12 | x\\|y |" in table and "|  | z |" in table
+
+
+def test_advice_health_cap_and_grid_rows():
+    grid = [{**adv("a", w), "task": "advice-oracle-grid", "condition": f"P-Oracle:e{i}|c"}
+            for i, w in enumerate([80, 100, 120, 30])]
+    outputs = pd.DataFrame([adv("a", 110), adv("b", 111), *grid])
+    summary, diff = advice_health(outputs, pd.Series({"a": 40, "b": 60}))
+    rows = summary.set_index("source")
+    assert rows.loc["gemma P0", "over_cap"] == 0.5  # 110 is at the cap, 111 is over
+    g = rows.loc["gemma P-Oracle grid"]
+    assert (g["n"], g["over_cap"], g["under_half_target"]) == (4, 0.25, 0.25)
+    assert diff.empty  # grid replies never enter the paired P-Oracle - P0 gap
+    text = " ".join(flags(pd.DataFrame(), pd.DataFrame(), summary, pd.DataFrame(),
+                          annotation_summary(sheet([]), SCHEMA, n_silver=100), n_silver=100))
+    assert "gemma P-Oracle grid: 25% of replies exceed 110 words" in text
+
+
+def test_style_health_flags_opener_emoji_and_persona():
+    texts = ["Uy, naku, gets ko 😊", "Uy naku! As a girl, I get it.", "Uy, naku. We're here for you.",
+             "Mahirap talaga yan."]
+    outputs = pd.DataFrame([{**adv(str(i), 5), "raw_output": t} for i, t in enumerate(texts)])
+    community = pd.Series({"0": "To each their own", "1": "Pass ako dyan", "2": "ok", "3": "k"})
+    style = style_health(outputs, community).set_index("source")
+    p0 = style.loc["gemma P0"]
+    assert (p0["top_opener"], p0["top_opener_share"]) == ("uy naku", 0.75)
+    assert p0["emoji_share"] == 0.25 and p0["persona_n"] == 2
+    assert (p0["top_first_word"], p0["top_first_word_share"]) == ("uy", 0.75)
+    assert style.loc["community (same posts)", "persona_n"] == 0
+    text = " ".join(style_flags(style.reset_index()))
+    assert "75% of replies open with 'uy naku'" in text
+    assert "2 persona claims" in text and "emoji" in text
+
+
+def test_style_flags_first_word_when_openers_vary():
+    texts = ["Uy naku a", "Uy gets b", "Uy grabe c", "Hala d"]
+    outputs = pd.DataFrame([{**adv(str(i), 5), "raw_output": t} for i, t in enumerate(texts)])
+    text = " ".join(style_flags(style_health(outputs, pd.Series(dtype=str))))
+    assert "75% of replies start with 'uy'" in text
+
+
+def test_style_health_persona_variants_and_taglish_share():
+    outputs = pd.DataFrame([{**adv("a", 5), "raw_output": "From a female perspective, ok."},
+                            {**adv("b", 5), "raw_output": "Mahirap talaga yan pero kaya mo."}])
+    style = style_health(outputs, pd.Series(dtype=str)).set_index("source").loc["gemma P0"]
+    assert style["persona_n"] == 1
+    assert style["tl_word_share"] == pytest.approx(4 / 11)  # talaga, yan, pero, mo out of 11 tokens

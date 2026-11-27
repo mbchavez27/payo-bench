@@ -9,20 +9,33 @@ annotation sheet alone.
 
 import json
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
+from payo_llm.cleanup import EMOJI
 from payo_llm.records import KEY_FIELDS
 from payo_llm.schema import Schema
 
 # Warning thresholds for the go/no-go discussion. These are pilot heuristics, not statistical tests.
 MAX_INVALID_RATE = 0.10        # Task A outputs that are not a schema emotion
 MAX_TOP_LABEL_SHARE = 0.50     # one predicted emotion dominating = possible label collapse
-MAX_WORDS = 180                # the advice prompts' hard cap
+MAX_WORDS = 110                # word cap (advice-*_v5.md; payo_llm/cleanup.py enforces it on rater-facing text)
+TARGET_WORDS = 90              # their target length ("about 90 words")
 MAX_OVER_CAP_SHARE = 0.10
 MAX_CTX_SHARE = 0.90           # longest prompt vs the context window
+MAX_OPENER_SHARE = 0.30        # one opening phrase across replies = a style tell for raters (v1.8)
+MAX_EMOJI_EXCESS = 0.20        # emoji share above the community's
+# Invented persona or presence claims (advice-*_v3.md forbids them); fixed list, whole-phrase, case-insensitive
+PERSONA = re.compile(r"\b(as an? (girl|guy|woman|man|mom|mother|dad|father|student|female|male)|(female|male|woman\'s|man\'s|girl\'s|guy\'s) perspective|we're here|we are here|"
+                     r"i'm here for you|i am here for you|ako rin|i've been there|i have been there|i also)\b",
+                     re.IGNORECASE)
+# Common Filipino function words: their share of tokens tracks how much of a reply is Filipino (Taglish)
+TL_WORDS = frozenset("ang ng mga sa na ko mo ka ako ikaw siya kayo tayo natin namin nila niya yung iyong ito yan "
+                     "lang naman pa po rin din ba kasi pero talaga hindi wag huwag may wala kung kapag pag para "
+                     "dahil sobra ganun ganyan diba yun nga eh daw raw ay at".split())
 ANNOTATION_FIELDS = ("exclude_flag", "primary_emotion", "cultural_concept", "expression", "domain", "need_type")
 SHEET_CATEGORIES = ("expression", "domain", "need_type")
 
@@ -41,6 +54,7 @@ def load_outputs(out_dir: Path) -> pd.DataFrame:
     """
     paths = sorted((out_dir / "emotion-recognition").glob("predictions_*.jsonl"))
     paths += sorted((out_dir / "advice-generation").glob("replies_*.jsonl"))
+    paths += sorted((out_dir / "advice-generation" / "oracle_grid").glob("replies_*.jsonl"))
     rows = []
     for path in paths:
         with path.open(encoding="utf-8") as handle:
@@ -145,7 +159,8 @@ def advice_health(outputs: pd.DataFrame, community_words: pd.Series) -> tuple[pd
     Returns:
         (length summary per source and condition, Oracle minus P0 length per model).
     """
-    adv = pd.concat([_ok(outputs, "advice-p0"), _ok(outputs, "advice-oracle")])
+    grid = _ok(outputs, "advice-oracle-grid").assign(condition="P-Oracle grid")  # one row for all label pairs
+    adv = pd.concat([_ok(outputs, "advice-p0"), _ok(outputs, "advice-oracle"), grid])
     if adv.empty:
         return pd.DataFrame(), pd.DataFrame()
     groups = [(f"{m} {c}", rows["reply_words"], rows["truncated"].astype(bool))
@@ -156,11 +171,11 @@ def advice_health(outputs: pd.DataFrame, community_words: pd.Series) -> tuple[pd
 
     summary = [{
         "source": name, "n": len(words), "median": words.median(), "q1": words.quantile(0.25),
-        "q3": words.quantile(0.75), "max": words.max(), "over_180": (words > MAX_WORDS).mean(),
-        "under_100": (words < 100).mean(), "truncated": truncated.mean(), "empty": (words == 0).sum(),
+        "q3": words.quantile(0.75), "max": words.max(), "over_cap": (words > MAX_WORDS).mean(),
+        "under_half_target": (words < TARGET_WORDS / 2).mean(), "truncated": truncated.mean(), "empty": (words == 0).sum(),
     } for name, words, truncated in groups]
 
-    wide = adv.pivot_table(index=["model", "post_id"], columns="condition", values="reply_words", aggfunc="first")
+    wide = adv[adv["condition"] != "P-Oracle grid"].pivot_table(index=["model", "post_id"], columns="condition", values="reply_words", aggfunc="first")
     diff = []
     if {"P0", "P-Oracle"} <= set(wide.columns):
         paired = (wide["P-Oracle"] - wide["P0"]).dropna()
@@ -168,6 +183,72 @@ def advice_health(outputs: pd.DataFrame, community_words: pd.Series) -> tuple[pd
             diff.append({"model": model, "n_pairs": len(values), "median_diff": values.median(),
                          "mean_diff": values.mean()})
     return pd.DataFrame(summary), pd.DataFrame(diff)
+
+
+def _opener(text: str) -> str:
+    """First two words, lowercased and without punctuation."""
+    words = re.findall(r"[\w'’-]+", text.lower())
+    return " ".join(words[:2])
+
+
+def _tl_share(texts: pd.Series) -> float:
+    """Share of all tokens that are common Filipino function words (TL_WORDS)."""
+    tokens = [w for t in texts for w in re.findall(r"[\w'’-]+", t.lower())]
+    return sum(w in TL_WORDS for w in tokens) / len(tokens) if tokens else math.nan
+
+
+def style_health(outputs: pd.DataFrame, community_text: pd.Series) -> pd.DataFrame:
+    """
+    Surface style tells that could reveal the source to raters, in code (no model, no gold).
+
+    Args:
+        outputs: From load_outputs.
+        community_text: Top community reply text, indexed by post_id.
+
+    Returns:
+        One row per source (model x condition, grid as one row, community on the same posts): the most common
+        two-word opener and first word with their shares, the share of replies with an emoji, and persona-claim matches, and the Filipino function-word share of tokens.
+    """
+    grid = _ok(outputs, "advice-oracle-grid").assign(condition="P-Oracle grid")
+    adv = pd.concat([_ok(outputs, "advice-p0"), _ok(outputs, "advice-oracle"), grid])
+    if adv.empty:
+        return pd.DataFrame()
+    groups = [(f"{m} {c}", rows["raw_output"].fillna("")) for (m, c), rows in adv.groupby(["model", "condition"])]
+    groups.append(("community (same posts)", community_text.reindex(adv["post_id"].unique()).dropna()))
+    rows = []
+    for name, texts in groups:
+        openers = texts.map(_opener).value_counts()
+        firsts = texts.map(lambda t: _opener(t).split(" ")[0]).value_counts()
+        rows.append({
+            "source": name, "n": len(texts),
+            "top_opener": openers.index[0] if len(openers) else "",
+            "top_opener_share": openers.iloc[0] / len(texts) if len(openers) else math.nan,
+            "top_first_word": firsts.index[0] if len(firsts) else "",
+            "top_first_word_share": firsts.iloc[0] / len(texts) if len(firsts) else math.nan,
+            "emoji_share": texts.map(lambda t: bool(EMOJI.search(t))).mean() if len(texts) else math.nan,
+            "persona_n": sum(len(PERSONA.findall(t)) for t in texts),
+            "tl_word_share": _tl_share(texts),
+        })
+    return pd.DataFrame(rows)
+
+
+def style_flags(style: pd.DataFrame) -> list[str]:
+    """Warnings from style_health: a dominant opener, emoji well above community, any persona claim."""
+    if style.empty:
+        return []
+    community = style[style["source"].str.startswith("community")]
+    base = community["emoji_share"].iloc[0] if len(community) else 0.0
+    out = []
+    for row in style[~style["source"].str.startswith("community")].itertuples():
+        if row.top_opener_share > MAX_OPENER_SHARE:
+            out.append(f"{row.source}: {row.top_opener_share:.0%} of replies open with '{row.top_opener}'.")
+        elif row.top_first_word_share > MAX_OPENER_SHARE:
+            out.append(f"{row.source}: {row.top_first_word_share:.0%} of replies start with '{row.top_first_word}'.")
+        if row.emoji_share > base + MAX_EMOJI_EXCESS:
+            out.append(f"{row.source}: {row.emoji_share:.0%} of replies have an emoji (community {base:.0%}).")
+        if row.persona_n:
+            out.append(f"{row.source}: {row.persona_n} persona claims (e.g. 'as a girl', 'we're here').")
+    return out
 
 
 def timing(outputs: pd.DataFrame, num_ctx: int) -> pd.DataFrame:
@@ -340,8 +421,8 @@ def flags(complete: pd.DataFrame, recognition: pd.DataFrame, advice: pd.DataFram
             continue
         if row.truncated > 0:
             out.append(f"{row.source}: {row.truncated:.0%} of replies hit max_new_tokens.")
-        if row.over_180 > MAX_OVER_CAP_SHARE:
-            out.append(f"{row.source}: {row.over_180:.0%} of replies exceed {MAX_WORDS} words.")
+        if row.over_cap > MAX_OVER_CAP_SHARE:
+            out.append(f"{row.source}: {row.over_cap:.0%} of replies exceed {MAX_WORDS} words.")
         if row.empty:
             out.append(f"{row.source}: {row.empty} empty replies.")
     for row in times.itertuples():
