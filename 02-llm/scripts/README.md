@@ -81,6 +81,7 @@ uv run python 02-llm/scripts/run.py --profile full --task all --model both --var
 - **Precision:**
   - `auto` picks the precision once and uses it for both models.
   - If FP8 fails to load on your card, rerun with `--precision bnb4`, the bitsandbytes 4-bit fallback.
+  - `fp32` is never picked by `auto`. It is the T4 route: `--precision fp32 --tp 2` on Kaggle's 2× T4 (below).
   - Whatever you choose, use the same value for every full-run command, and record it.
 - **`sample_posts.csv`:** this comes from `03-evaluation/workflow.py sample`, the stratified ~236 posts with the pilot ids excluded. Recognition and P0 advice need only this file, so they can run before annotation (keep the outputs unopened until `finalize-labels`). P-Oracle needs `annotations_adjudicated.csv` too.
 
@@ -118,9 +119,31 @@ If something fails:
 | `Engine core initialization failed`, with `determine_available_memory` / `_initialize_kv_caches` or "No available memory for the cache blocks" above it | Not enough VRAM left for the 8k KV cache. Close every other GPU app, rerun with the highest `--gpu-mem` the check accepts, then `rm -rf /tmp/payo-trial` and retry. If it still fails, use `--precision bnb4` for **every** run and log it in `02-llm/README.md` |
 | CUDA out of memory while loading | Rerun with `--gpu-mem 0.85`. If it still fails, move the files in `02-llm/gold/` away and use `--precision bnb4` (4-bit) for **every** run; log it in `02-llm/README.md` |
 | `already has outputs at precision ...` | One file got two precisions. Use the same `--precision` as before, or move the file away to start over |
+| `compute capability 7.5 < 8.0` on a T4 | Use Kaggle's **GPU T4 x2** with `--precision fp32 --tp 2` (section above) |
+| `fp32 needs about 28 GB across GPUs` | One T4 isn't enough: pick **GPU T4 x2** and pass `--tp 2` |
 | `gated repo` / 401 | Accept the Gemma license on Hugging Face with the account whose token is in `.env` |
 
 Don't open or print the JSONL outputs until `finalize-labels` (RUNBOOK, blindness rule). The run prints only counts.
+
+## Free GPU: Kaggle 2× T4 (FP32)
+
+With no RTX 30-series card, use Kaggle's free **GPU T4 x2** (30 GPU-hours a week, 12-hour sessions) through `kaggle_full_run.ipynb`. It runs `pipeline.py --precision fp32 --tp 2`: the weights are loaded unquantized in float32 and each model is split across both GPUs (tensor parallel 2). `tensor_parallel_size` is saved under `engine` in `run_record.json`.
+
+Why not something else:
+
+- **Free Colab** has a single T4 (15 GB). FP32 weights alone are 17.2 GB, so they don't fit.
+- **BF16 and FP8** need compute capability 8.0. The T4 is 7.5.
+- **FP16** fits, but Gemma 3 was trained in BF16 and gives non-finite logits in FP16 (both models here are Gemma 3).
+
+Steps (the notebook's first cell has the details):
+
+1. Upload `advice_pairs.parquet` as a **private** Kaggle dataset, and add `HF_TOKEN` under Add-ons → Secrets.
+2. Import `02-llm/scripts/kaggle_full_run.ipynb`, set Accelerator **GPU T4 x2** and Internet on, and pin `COMMIT`.
+3. Use **Save Version → Save & Run All**. The clone lives in `/tmp`, and only `02-llm/gold/` is copied to the saved output.
+4. **Resume:** FP32 on a T4 is slow, and the P-Oracle grid may need 2–3 sessions. Attach the previous version's output as an input, set `PREVIOUS`, and run again. Finished generations are skipped.
+5. Download `gold/` to the main machine **without opening it**.
+
+Use `--precision fp32 --tp 2` for **every** full-run command, in every session. The precision guard stops a file from mixing precisions. Before the real runs, check the trial's `latency_s` to estimate how many sessions you'll need. If vLLM fails to start because no attention backend supports the T4, set `VLLM_ATTENTION_BACKEND` to one that does, and log it in `02-llm/README.md`.
 
 ## Behavior shared by both profiles
 

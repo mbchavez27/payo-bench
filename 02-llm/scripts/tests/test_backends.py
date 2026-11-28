@@ -74,6 +74,7 @@ def test_ollama_missing_model_says_how_to_pull():
 
 @pytest.mark.parametrize("requested, vram, expected", [
     ("auto", 8.0, "fp8"), ("auto", 12.0, "bf16"), ("auto", 11.0, "bf16"), ("bnb4", None, "bnb4"), ("bf16", 4.0, "bf16"),
+    ("fp32", None, "fp32"), ("auto", 15.0, "bf16"),  # auto never picks fp32: the T4 route is explicit
 ])
 def test_select_precision(requested, vram, expected):
     assert select_precision(requested, vram) == expected
@@ -92,6 +93,17 @@ def test_check_gpu_accepts_8gb_ampere_and_rejects_old_or_full_cards():
     assert len(busy) == 1 and "--gpu-mem 0.78" in busy[0]
 
 
+def test_check_gpu_t4_needs_fp32_on_two_gpus():
+    # Kaggle "GPU T4 x2": compute capability 7.5, 15 GB each
+    assert check_gpu((7, 5), 15.0, 14.7, 0.90, "fp32", tensor_parallel_size=2, n_gpus=2) == []
+    bf16 = check_gpu((7, 5), 15.0, 14.7, 0.90, "bf16", tensor_parallel_size=1, n_gpus=2)
+    assert len(bf16) == 1 and "--precision fp32 --tp 2" in bf16[0]
+    one_gpu = check_gpu((7, 5), 15.0, 14.7, 0.90, "fp32", tensor_parallel_size=1, n_gpus=1)  # free Colab
+    assert len(one_gpu) == 1 and "fp32 needs about 28 GB" in one_gpu[0]
+    missing = check_gpu((7, 5), 15.0, 14.7, 0.90, "fp32", tensor_parallel_size=2, n_gpus=1)
+    assert any("needs 2 GPUs" in m for m in missing)
+
+
 def test_existing_precisions(tmp_path):
     path = tmp_path / "out.jsonl"
     assert existing_precisions(path) == set()
@@ -104,6 +116,14 @@ def test_vllm_engine_args_keep_study_settings_and_add_memory_options():
     assert (args["quantization"], args["max_model_len"], args["dtype"], args["seed"]) == ("fp8", 8192, "bfloat16", 42)
     assert (args["enforce_eager"], args["max_num_seqs"], args["gpu_memory_utilization"]) == (True, 16, 0.85)
     assert "quantization" not in vllm_engine_args("m", "r", "bf16", 8192, 0.9, 42)
+    assert args["tensor_parallel_size"] == 1
+
+
+def test_vllm_engine_args_fp32_is_unquantized_float32_and_split():
+    args = vllm_engine_args("google/gemma-3-4b-it", "abc", "fp32", 8192, 0.9, 42, enforce_eager=True,
+                            max_num_seqs=16, tensor_parallel_size=2)
+    assert (args["dtype"], args["tensor_parallel_size"]) == ("float32", 2)
+    assert "quantization" not in args
 
 
 def test_full_profile_sets_the_8gb_memory_options():
@@ -113,3 +133,4 @@ def test_full_profile_sets_the_8gb_memory_options():
     cfg = tomllib.loads((Path(__file__).resolve().parents[1] / "config.toml").read_text(encoding="utf-8"))
     full = cfg["profiles"]["full"]
     assert full["enforce_eager"] is True and full["max_num_seqs"] == 16 and full["max_model_len"] == 8192
+    assert full["tensor_parallel_size"] == 1

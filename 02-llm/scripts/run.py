@@ -67,7 +67,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default="both", choices=["gemma", "sealion", "both"])
     parser.add_argument("--posts", type=Path, help="CSV with a post_id column (overrides the profile)")
     parser.add_argument("--limit", type=int, help="only the first N posts (smoke tests)")
-    parser.add_argument("--precision", choices=["auto", "bf16", "fp8", "bnb4"], help="full profile only")
+    parser.add_argument("--precision", choices=["auto", "bf16", "fp8", "bnb4", "fp32"], help="full profile only")
+    parser.add_argument("--tp", type=int, help="full profile: split each model across N GPUs (tensor parallel)")
     parser.add_argument("--gpu-mem", type=float, help="full profile: override gpu_memory_utilization (0-1)")
     parser.add_argument("--out-dir", type=Path, help="write outputs here instead of the profile's folder (trial runs)")
     parser.add_argument("--variance", action="store_true", help="sampled runs on a subset, for variance")
@@ -94,6 +95,8 @@ def child_argv(args: argparse.Namespace, model: str) -> list[str]:
         argv += ["--precision", args.precision]
     if args.gpu_mem:
         argv += ["--gpu-mem", str(args.gpu_mem)]
+    if args.tp:
+        argv += ["--tp", str(args.tp)]
     if args.out_dir:
         argv += ["--out-dir", str(args.out_dir)]
     if args.variance:
@@ -124,7 +127,8 @@ def make_backend(cfg: dict[str, Any], profile: dict[str, Any], model: str, preci
 def engine_options(profile: dict[str, Any]) -> dict[str, Any]:
     """vLLM memory options from the profile (defaults are vLLM's own)."""
     return {"enforce_eager": bool(profile.get("enforce_eager", False)),
-            "max_num_seqs": int(profile.get("max_num_seqs", 256))}
+            "max_num_seqs": int(profile.get("max_num_seqs", 256)),
+            "tensor_parallel_size": int(profile.get("tensor_parallel_size", 1))}
 
 
 def build_jobs(task: str, posts: list[Post], schema: Schema, template: PromptTemplate,
@@ -247,9 +251,11 @@ def preflight(cfg: dict[str, Any], profile: dict[str, Any], model: str, precisio
         print(f"[ok] {model}: {backend.model_ref} ({backend.precision}), {backend.versions()}")
         return
     precision = resolve_precision(profile, precision_override)
-    capability, total, free, name = cuda_info()
-    print(f"GPU: {name}, compute capability {capability[0]}.{capability[1]}, {total:.1f} GB total, {free:.1f} GB free")
-    problems = check_gpu(capability, total, free, profile["gpu_memory_utilization"])
+    tp = engine_options(profile)["tensor_parallel_size"]
+    capability, total, free, name, n_gpus = cuda_info(tp)
+    print(f"GPU: {n_gpus} x {name}, compute capability {capability[0]}.{capability[1]}, {total:.1f} GB total, "
+          f"{free:.1f} GB free (per GPU, smallest of the {tp} used)")
+    problems = check_gpu(capability, total, free, profile["gpu_memory_utilization"], precision, tp, n_gpus)
     if problems:
         sys.exit("GPU check failed:\n  " + "\n  ".join(problems))
     import vllm  # noqa: PLC0415
@@ -264,6 +270,8 @@ def run_model(args: argparse.Namespace, cfg: dict[str, Any], model: str) -> None
     profile = dict(cfg["profiles"][args.profile])
     if args.gpu_mem:
         profile["gpu_memory_utilization"] = args.gpu_mem
+    if args.tp:
+        profile["tensor_parallel_size"] = args.tp
     if args.check:
         preflight(cfg, profile, model, args.precision)
         return

@@ -50,6 +50,7 @@ gpu_memory_utilization = 0.90
 # memory-profiling step fails on an 8 GB card (RTX 5060, WSL). Recorded under "engine" in run_record.json.
 enforce_eager = true  # no CUDA graphs / torch.compile: frees their memory, slower per token
 max_num_seqs = 16     # sequences in flight (vLLM default 256); batch_size below just queues
+tensor_parallel_size = 1  # GPUs per model; Kaggle 2x T4 runs with --precision fp32 --tp 2 (README, "Free GPU")
 posts = "02-llm/gold/sample_posts.csv"
 # advice-oracle-grid (v1.4): the rated-set candidates, from `workflow.py rating-candidates`
 oracle_grid_posts = "02-llm/gold/author-ratings/rating_candidates.csv"

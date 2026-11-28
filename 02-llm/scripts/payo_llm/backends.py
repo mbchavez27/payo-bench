@@ -15,7 +15,8 @@ from typing import Any, Protocol
 import requests
 
 BF16_MIN_VRAM_GB = 11.0  # 4B weights are 8.6 GB in bf16, plus KV cache and activations
-PRECISIONS = ("bf16", "fp8", "bnb4")
+FP32_MIN_TOTAL_VRAM_GB = 28.0  # 4B weights are 17.2 GB in fp32, plus an fp32 KV cache for 8k (2x T4 = 30 GB)
+PRECISIONS = ("bf16", "fp8", "bnb4", "fp32")
 
 
 @dataclass(frozen=True)
@@ -72,7 +73,8 @@ def select_precision(requested: str, vram_gb: float | None) -> str:
 
     Returns:
         "bf16" when the GPU has room for full-precision weights, otherwise "fp8"
-        (weight-only FP8, which vLLM runs on Ampere through its Marlin kernel).
+        (weight-only FP8, which vLLM runs on Ampere through its Marlin kernel). "fp32" is never picked
+        automatically: it is the T4 route (Kaggle 2x T4, tensor parallel 2), which has no bf16 or FP8.
     """
     if requested != "auto":
         if requested not in PRECISIONS:
@@ -163,9 +165,13 @@ class OllamaBackend:
 
 def vllm_engine_args(hf_id: str, revision: str, precision: str, max_model_len: int,
                      gpu_memory_utilization: float, seed: int, enforce_eager: bool = False,
-                     max_num_seqs: int = 256) -> dict[str, Any]:
+                     max_num_seqs: int = 256, tensor_parallel_size: int = 1) -> dict[str, Any]:
     """
     Keyword arguments for vllm.LLM.
+
+    fp32 loads the weights unquantized in float32. It exists for Turing GPUs such as the T4, where bf16 and
+    FP8 are unavailable and Gemma 3 gives non-finite logits in fp16. tensor_parallel_size splits the model
+    across that many GPUs (2 on Kaggle's 2x T4).
 
     enforce_eager and max_num_seqs change only vLLM's working memory (no CUDA graphs or torch.compile, fewer
     sequences in flight), not the weights, precision, context length or decoding. They let FP8 Gemma-3-4B
@@ -175,13 +181,14 @@ def vllm_engine_args(hf_id: str, revision: str, precision: str, max_model_len: i
         "model": hf_id,
         "revision": revision,
         "tokenizer_revision": revision,
-        "dtype": "bfloat16",
+        "dtype": "float32" if precision == "fp32" else "bfloat16",
         "max_model_len": max_model_len,
         "gpu_memory_utilization": gpu_memory_utilization,
         "limit_mm_per_prompt": {"image": 0},  # text-only study: no image budget
         "seed": seed,
         "enforce_eager": enforce_eager,
         "max_num_seqs": max_num_seqs,
+        "tensor_parallel_size": tensor_parallel_size,
     }
     if precision == "fp8":
         kwargs["quantization"] = "fp8"
@@ -197,14 +204,14 @@ class VLLMBackend:
 
     def __init__(self, hf_id: str, revision: str, precision: str, max_model_len: int,
                  gpu_memory_utilization: float, seed: int, enforce_eager: bool = False,
-                 max_num_seqs: int = 256) -> None:
+                 max_num_seqs: int = 256, tensor_parallel_size: int = 1) -> None:
         from vllm import LLM  # noqa: PLC0415  (Linux-only dependency)
 
         self.precision = precision
         self.max_model_len = max_model_len
         self.model_ref = f"{hf_id}@{revision}"
         kwargs = vllm_engine_args(hf_id, revision, precision, max_model_len, gpu_memory_utilization, seed,
-                                  enforce_eager, max_num_seqs)
+                                  enforce_eager, max_num_seqs, tensor_parallel_size)
         self.llm = LLM(**kwargs)
         self.tokenizer = self.llm.get_tokenizer()
         self.chat_template = getattr(self.tokenizer, "chat_template", None)
@@ -258,23 +265,34 @@ class VLLMBackend:
 MIN_COMPUTE_CAPABILITY = (8, 0)  # Ampere: bf16 compute and vLLM's FP8 (Marlin) kernels
 
 
-def check_gpu(capability: tuple[int, int], total_gb: float, free_gb: float, utilization: float) -> list[str]:
+def check_gpu(capability: tuple[int, int], total_gb: float, free_gb: float, utilization: float,
+              precision: str = "fp8", tensor_parallel_size: int = 1, n_gpus: int = 1) -> list[str]:
     """
     Problems that would stop a vLLM run on this GPU, as readable messages (empty list = fine).
 
     Args:
         capability: CUDA compute capability, e.g. (8, 6) for an RTX 30-series card.
-        total_gb: Total VRAM.
-        free_gb: VRAM free right now (a desktop display can hold some).
-        utilization: The gpu_memory_utilization vLLM will ask for.
+        total_gb: Total VRAM of one GPU (the smallest, when tensor parallel uses several).
+        free_gb: VRAM free right now on that GPU (a desktop display can hold some).
+        utilization: The gpu_memory_utilization vLLM will ask for, on each GPU.
+        precision: The resolved precision ("auto" already turned into a value).
+        tensor_parallel_size: How many GPUs the model is split across.
+        n_gpus: How many CUDA GPUs this machine has.
 
     Returns:
         One message per problem.
     """
     problems = []
-    if capability < MIN_COMPUTE_CAPABILITY:
+    if capability < MIN_COMPUTE_CAPABILITY and precision != "fp32":
         problems.append(f"compute capability {capability[0]}.{capability[1]} < 8.0: this card is older than RTX 30 "
-                        "(Ampere), so vLLM can't run bf16 or FP8 here. Use the Mac profile instead.")
+                        "(Ampere), so vLLM can't run bf16 or FP8 here. On a machine with two T4s (Kaggle "
+                        "\"GPU T4 x2\") use --precision fp32 --tp 2; otherwise use the Mac profile.")
+    if tensor_parallel_size > n_gpus:
+        problems.append(f"--tp {tensor_parallel_size} needs {tensor_parallel_size} GPUs, but only {n_gpus} found.")
+    if precision == "fp32" and total_gb * tensor_parallel_size < FP32_MIN_TOTAL_VRAM_GB:
+        problems.append(f"fp32 needs about {FP32_MIN_TOTAL_VRAM_GB:.0f} GB across GPUs, but {tensor_parallel_size} x "
+                        f"{total_gb:.1f} GB is {total_gb * tensor_parallel_size:.1f} GB. On Kaggle pick "
+                        "\"GPU T4 x2\" and pass --tp 2.")
     if total_gb < 7.5:
         problems.append(f"{total_gb:.1f} GB VRAM: too small for a 4B model with an 8k context even at FP8.")
     elif free_gb < total_gb * utilization:
@@ -284,14 +302,22 @@ def check_gpu(capability: tuple[int, int], total_gb: float, free_gb: float, util
     return problems
 
 
-def cuda_info() -> tuple[tuple[int, int], float, float, str]:
-    """(compute capability, total GB, free GB, name) of GPU 0."""
+def cuda_info(n_used: int = 1) -> tuple[tuple[int, int], float, float, str, int]:
+    """
+    (compute capability, total GB, free GB, name, GPU count) for the first n_used GPUs.
+
+    With several GPUs (tensor parallel), total and free are the smallest among them, because vLLM asks
+    for the same share of memory on each.
+    """
     import torch  # noqa: PLC0415
 
     if not torch.cuda.is_available():
         raise RuntimeError("No CUDA GPU found. The full profile needs Linux (or WSL2) + an NVIDIA GPU.")
-    free, total = torch.cuda.mem_get_info(0)
-    return torch.cuda.get_device_capability(0), total / 1024**3, free / 1024**3, torch.cuda.get_device_name(0)
+    count = torch.cuda.device_count()
+    memory = [torch.cuda.mem_get_info(i) for i in range(min(n_used, count))]  # (free, total) bytes
+    total = min(t for _, t in memory) / 1024**3
+    free = min(f for f, _ in memory) / 1024**3
+    return torch.cuda.get_device_capability(0), total, free, torch.cuda.get_device_name(0), count
 
 
 def cuda_vram_gb() -> float:
