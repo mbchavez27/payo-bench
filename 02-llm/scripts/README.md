@@ -140,13 +140,15 @@ Steps (the notebook's first cell has the details):
 
 1. Upload `advice_pairs.parquet` as a **private** Kaggle dataset, and add `HF_TOKEN` under Add-ons → Secrets.
 2. Import `02-llm/scripts/kaggle_full_run.ipynb`, set Accelerator **GPU T4 x2** and Internet on, and pin `COMMIT`.
-3. Use **Save Version → Save & Run All**. The clone lives in `/tmp`, and only `02-llm/gold/` is copied to the saved output.
+3. Use **Save Version → Save & Run All**. The clone lives in `/tmp`, so `.env` and the silver data never reach the saved output. `02-llm/gold/` is a link to `/kaggle/working/gold`, so outputs are saved as they are written, even if Kaggle stops the run at its 12-hour limit.
 4. **Resume:** FP32 on a T4 is slow, and the P-Oracle grid may need 2–3 sessions. Attach the previous version's output as an input, set `PREVIOUS`, and run again. Finished generations are skipped.
 5. Download `gold/` to the main machine **without opening it**.
 
 On a T4, vLLM's Triton attention kernel needs 80 KB of shared memory for Gemma 3 at FP32, but the T4 has 64 KB. A small vLLM plugin (`payo_llm/fp32_attention.py`, registered in `pyproject.toml`) makes vLLM use 16-token attention tiles for FP32 only (48 KB). The math is the same; only the blocking of the attention sum changes. BF16 and FP8 runs are untouched. `run_record.json` records it as `engine.fp32_attention_tile`.
 
 At FP32, vLLM's default 8,192-token prefill chunk reserves ~3.7 GB of activations per GPU and leaves too little for an 8k KV cache, so the Kaggle flags also set a smaller prefill chunk (`--max-batched-tokens 1024`; longer prompts are read in several chunks) and `--gpu-mem 0.95`. For speed, `--max-num-seqs 32` lets more requests run at once, and `--cuda-graphs decode` replays each decode step as a captured CUDA graph (torch.compile stays off, so the same kernels run with less launch overhead). With the earlier eager settings, one P-Oracle grid post took ~8.5 min per model. All of these are recorded under `engine` and change how fast the work runs, not what is computed.
+
+**One account, two sessions:** run `--model gemma` in one session (~8 h) and `--model sealion` in the next, attaching the first session's output as `PREVIOUS`. Each fits within Kaggle's 12-hour limit, and the outputs land in one `gold/` with no merge.
 
 **Splitting across two accounts:** the P-Oracle grid is ~95% of the work. To halve the wall time, run `--model gemma` on one Kaggle account and `--model sealion` on another at the same time (the notebook's `MODEL` setting), with the same `COMMIT` and flags. Then copy one `gold/` into `02-llm/gold/` and run `uv run python 02-llm/scripts/merge_gold.py <the other gold folder>`. It refuses to merge if the precision or engine settings differ, or if a model appears on both sides, and it rewrites `MANIFEST.json`.
 
