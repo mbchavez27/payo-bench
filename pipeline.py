@@ -4,7 +4,7 @@ and says what a person has to do next.
 
     uv run python pipeline.py                 # Mac or GPU PC: run what's possible, print the next step
     uv run python pipeline.py --gpu-mem 0.8   # GPU PC: pass vLLM options through to every model run
-    uv run python pipeline.py --precision fp32 --tp 2   # Kaggle 2x T4 (free): fp32 split across both GPUs
+    uv run python pipeline.py --precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 2048   # Kaggle 2x T4 (free)
     uv run python pipeline.py --no-trial      # skip the trial (3 posts + 1 P-Oracle grid post) before the first model run
 
 Stages, in order (each one is skipped when its output already exists):
@@ -133,11 +133,13 @@ def main() -> None:
     parser.add_argument("--gpu-mem", help="passed to run.py (use the same value for every run)")
     parser.add_argument("--precision", choices=["auto", "bf16", "fp8", "bnb4", "fp32"], help="passed to run.py")
     parser.add_argument("--tp", help="passed to run.py: GPUs per model (Kaggle 2x T4: --precision fp32 --tp 2)")
+    parser.add_argument("--max-batched-tokens", help="passed to run.py: vLLM prefill chunk (Kaggle 2x T4: 2048)")
     parser.add_argument("--no-trial", action="store_true", help="skip the trial run (3 posts + 1 grid post)")
     args = parser.parse_args()
     extra = [*(["--gpu-mem", args.gpu_mem] if args.gpu_mem else []),
              *(["--precision", args.precision] if args.precision else []),
-             *(["--tp", args.tp] if args.tp else [])]
+             *(["--tp", args.tp] if args.tp else []),
+             *(["--max-batched-tokens", args.max_batched_tokens] if args.max_batched_tokens else [])]
     stage_silver()
     stage_sample()
     stage_candidates()

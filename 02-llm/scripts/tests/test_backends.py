@@ -123,7 +123,8 @@ def test_vllm_engine_args_fp32_is_unquantized_float32_and_split():
     args = vllm_engine_args("google/gemma-3-4b-it", "abc", "fp32", 8192, 0.9, 42, enforce_eager=True,
                             max_num_seqs=16, tensor_parallel_size=2)
     assert (args["dtype"], args["tensor_parallel_size"]) == ("float32", 2)
-    assert "quantization" not in args
+    assert "quantization" not in args and "max_num_batched_tokens" not in args  # vLLM default unless set
+    assert vllm_engine_args("m", "r", "fp32", 8192, 0.95, 42, max_num_batched_tokens=2048)["max_num_batched_tokens"] == 2048
 
 
 def test_fp32_tiles_shrink_only_fp32():

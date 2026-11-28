@@ -165,13 +165,16 @@ class OllamaBackend:
 
 def vllm_engine_args(hf_id: str, revision: str, precision: str, max_model_len: int,
                      gpu_memory_utilization: float, seed: int, enforce_eager: bool = False,
-                     max_num_seqs: int = 256, tensor_parallel_size: int = 1) -> dict[str, Any]:
+                     max_num_seqs: int = 256, tensor_parallel_size: int = 1,
+                     max_num_batched_tokens: int | None = None) -> dict[str, Any]:
     """
     Keyword arguments for vllm.LLM.
 
     fp32 loads the weights unquantized in float32. It exists for Turing GPUs such as the T4, where bf16 and
     FP8 are unavailable and Gemma 3 gives non-finite logits in fp16. tensor_parallel_size splits the model
-    across that many GPUs (2 on Kaggle's 2x T4).
+    across that many GPUs (2 on Kaggle's 2x T4). max_num_batched_tokens caps the tokens per engine step (the
+    chunked-prefill chunk); a smaller cap shrinks the activation memory vLLM reserves, which fp32 on a T4 needs
+    to leave room for an 8k KV cache. None keeps vLLM's default.
 
     enforce_eager and max_num_seqs change only vLLM's working memory (no CUDA graphs or torch.compile, fewer
     sequences in flight), not the weights, precision, context length or decoding. They let FP8 Gemma-3-4B
@@ -190,6 +193,8 @@ def vllm_engine_args(hf_id: str, revision: str, precision: str, max_model_len: i
         "max_num_seqs": max_num_seqs,
         "tensor_parallel_size": tensor_parallel_size,
     }
+    if max_num_batched_tokens is not None:
+        kwargs["max_num_batched_tokens"] = max_num_batched_tokens
     if precision == "fp8":
         kwargs["quantization"] = "fp8"
     elif precision == "bnb4":
@@ -204,14 +209,15 @@ class VLLMBackend:
 
     def __init__(self, hf_id: str, revision: str, precision: str, max_model_len: int,
                  gpu_memory_utilization: float, seed: int, enforce_eager: bool = False,
-                 max_num_seqs: int = 256, tensor_parallel_size: int = 1) -> None:
+                 max_num_seqs: int = 256, tensor_parallel_size: int = 1,
+                 max_num_batched_tokens: int | None = None) -> None:
         from vllm import LLM  # noqa: PLC0415  (Linux-only dependency)
 
         self.precision = precision
         self.max_model_len = max_model_len
         self.model_ref = f"{hf_id}@{revision}"
         kwargs = vllm_engine_args(hf_id, revision, precision, max_model_len, gpu_memory_utilization, seed,
-                                  enforce_eager, max_num_seqs, tensor_parallel_size)
+                                  enforce_eager, max_num_seqs, tensor_parallel_size, max_num_batched_tokens)
         self.llm = LLM(**kwargs)
         self.tokenizer = self.llm.get_tokenizer()
         self.chat_template = getattr(self.tokenizer, "chat_template", None)
