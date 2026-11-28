@@ -1,0 +1,91 @@
+{{ bos_token }}
+{%- set has_system = messages and messages[0]['role'] == 'system' -%}
+{%- set start_index = 1 if has_system else 0 -%}
+{%- set loop_messages = messages[start_index:] -%}
+
+{#- ---- system/tools turn ---- -#}
+{%- if has_system or tools -%}
+  {{- '<start_of_turn>system\n' -}}
+  {%- if has_system -%}
+    {%- if messages[0]['content'] is string -%}
+      {{- messages[0]['content'] | trim -}}
+    {%- elif messages[0]['content'] is iterable -%}
+      {%- for item in messages[0]['content'] -%}
+        {%- if item['type'] == 'image' -%}
+          {{- '<start_of_image>' -}}
+        {%- elif item['type'] == 'text' -%}
+          {{- item['text'] | trim -}}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+  {%- endif -%}
+  {%- if tools -%}
+    {%- if has_system -%}
+      {{- '\n\n' -}}
+    {%- endif -%}
+    {{- '# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>' -}}
+    {%- for tool in tools -%}
+      {{- '\n' -}}
+      {{- tool | tojson -}}
+    {%- endfor -%}
+    {{- '\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call>' -}}
+  {%- endif -%}
+  {{- '<end_of_turn>\n' -}}
+{%- endif -%}
+
+{#- ---- main loop ---- -#}
+{%- for message in loop_messages -%}
+  {%- if message['role'] == 'tool' -%}
+    {%- if loop.first or loop_messages[loop.index0 - 1]['role'] != 'tool' -%}
+      {{- '<start_of_turn>user\n' -}}
+    {%- endif -%}
+    {{- '<tool_response>\n' -}}
+    {%- if message['content'] is string -%}
+      {{- message['content'] | trim -}}
+    {%- elif message['content'] is iterable -%}
+      {%- for item in message['content'] -%}
+        {%- if item['type'] == 'image' -%}
+          {{- '<start_of_image>' -}}
+        {%- elif item['type'] == 'text' -%}
+          {{- item['text'] | trim -}}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {{- '\n</tool_response>\n' -}}
+    {%- if loop.last or loop_messages[loop.index0 + 1]['role'] != 'tool' -%}
+      {{- '<end_of_turn>\n' -}}
+    {%- endif -%}
+  {%- else -%}
+    {%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}
+    {{- '<start_of_turn>' + role + '\n' -}}
+    {%- if message['content'] is string -%}
+      {{- message['content'] | trim -}}
+    {%- elif message['content'] is iterable -%}
+      {%- for item in message['content'] -%}
+        {%- if item['type'] == 'image' -%}
+          {{- '<start_of_image>' -}}
+        {%- elif item['type'] == 'text' -%}
+          {{- item['text'] | trim -}}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if message['role'] == 'assistant' and message.get('tool_calls') -%}
+      {%- for tc0 in message['tool_calls'] -%}
+        {%- set tc = tc0['function'] if tc0.get('function') else tc0 -%}
+        {{- '\n<tool_call>\n{"name": "' + tc['name'] + '", "arguments": ' -}}
+        {%- if tc['arguments'] is string -%}
+          {{- tc['arguments'] -}}
+        {%- else -%}
+          {{- tc['arguments'] | tojson -}}
+        {%- endif -%}
+        {{- '}\n</tool_call>' -}}
+      {%- endfor -%}
+    {%- endif -%}
+    {{- '<end_of_turn>\n' -}}
+  {%- endif -%}
+{%- endfor -%}
+
+{#- ---- generation prompt ---- -#}
+{%- if add_generation_prompt -%}
+  {{- '<start_of_turn>model\n' -}}
+{%- endif -%}

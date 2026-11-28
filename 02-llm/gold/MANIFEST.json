@@ -1,0 +1,107 @@
+{
+  "layer": "gold",
+  "generated_at": "2026-11-28T17:10:07+00:00",
+  "generated_by": "02-llm/scripts/run.py",
+  "git_commit": "c8d1e9c1b6e323e760da9f53f0da7cda71855860-dirty",
+  "inputs": {
+    "02-llm/gold/emotion-recognition/label-schema.json": "8e488d5ff9de9ca37dcb889a7485c292828403e4ec1caaa65183f2cd8199ed5d",
+    "02-llm/gold/sample_posts.csv": "162f25b32800f319accd9da38eb74f3032ae35de9e36502e710105ce89ffb652",
+    "02-llm/gold/author-ratings/rating_candidates.csv": "cb492a61a2fe2d9088bd9eb03a3f2c3c67dbf7ec15df31445d3c648ef678d03d",
+    "01-preprocessing/silver/MANIFEST.json": "02806c702ad4c9739543d841d869b30dc2d71a8ac2054364e612d817c77f5c5b",
+    "02-llm/prompts/emotion-recognition_v4.md": "4686cc8a4d226bcdb24d4c515926c0d6529f401ae252efa535f2dc80e0352408",
+    "02-llm/prompts/advice-p0_v5.md": "1849bb2904763bb98358e921f909d51f556732898a35562391cf41c23c4fb6e8",
+    "02-llm/prompts/advice-oracle_v5.md": "ae6c8d39e7bad2590a1a6921cf78048bb70e587b176f39c731885abb2bf717b4"
+  },
+  "files": {
+    "advice-generation/oracle_grid/replies_gemma.jsonl": {
+      "sha256": "8c4b747858d5e21d1b79640cef66c76b10545abd276c11972d4c8a69fb66a5b5",
+      "rows": 6816,
+      "bytes": 9858710
+    },
+    "advice-generation/oracle_grid/replies_sealion.jsonl": {
+      "sha256": "e79ac20ae1db5e4e17cb764a5e1d386f5c1eef1683a80300eefcb41a9f4a706c",
+      "rows": 6816,
+      "bytes": 10067259
+    },
+    "advice-generation/replies_gemma_p0.jsonl": {
+      "sha256": "05dc055315912736de11ae4dd2a6debc8416fea6dfbc5ce1531ab4d7a84f2050",
+      "rows": 236,
+      "bytes": 312991
+    },
+    "advice-generation/replies_sealion_p0.jsonl": {
+      "sha256": "f3049b6494360786ed7d3b9a4e0304ab0a8f04bc819963d9e45026aedfbeba69",
+      "rows": 236,
+      "bytes": 319550
+    },
+    "emotion-recognition/predictions_gemma.jsonl": {
+      "sha256": "bbc10127a6f9e0ef89c9296f011eff97522624f572205c86d3e72341915876aa",
+      "rows": 236,
+      "bytes": 219658
+    },
+    "emotion-recognition/predictions_sealion.jsonl": {
+      "sha256": "1b3b7b54ab1863859b37dc57e5c16ee5d871175b9a0fd4ef79bd0eeba5c2620c",
+      "rows": 236,
+      "bytes": 221184
+    },
+    "variance/advice-generation_replies_gemma_p0_seed1.jsonl": {
+      "sha256": "a64a7a75e779283c12c49b9fd59239eb81b558ed1635c74898f32807124270ab",
+      "rows": 30,
+      "bytes": 38768
+    },
+    "variance/advice-generation_replies_gemma_p0_seed2.jsonl": {
+      "sha256": "f12e83d18d21ae72f652d5e61c018cdd8b2bcdd9021160feaeb610a6ef5e0aa0",
+      "rows": 30,
+      "bytes": 38267
+    },
+    "variance/advice-generation_replies_gemma_p0_seed3.jsonl": {
+      "sha256": "20a17204dea56378a8f6103fcc957ebfe8955d2c2dd9016fc94530247cd32bfe",
+      "rows": 30,
+      "bytes": 38310
+    },
+    "variance/advice-generation_replies_sealion_p0_seed1.jsonl": {
+      "sha256": "cb7a238ea48fe759c042a5b189d95481a82a515baf7de19e7766df03258d15e3",
+      "rows": 30,
+      "bytes": 39868
+    },
+    "variance/advice-generation_replies_sealion_p0_seed2.jsonl": {
+      "sha256": "f175fd2ac1e95bbdbe0020a1291e03de0256801e57117f11bf72a5aec0c27052",
+      "rows": 30,
+      "bytes": 39719
+    },
+    "variance/advice-generation_replies_sealion_p0_seed3.jsonl": {
+      "sha256": "a3eb7f697552b54cb0f8cc826e20bcefbfa86084adecd97156849416368f3130",
+      "rows": 30,
+      "bytes": 39541
+    },
+    "variance/emotion-recognition_predictions_gemma_seed1.jsonl": {
+      "sha256": "d004b6e24481b6bfb7c7adbcd3fae5d34d11b00c5e4028e95e222cb6de33df67",
+      "rows": 30,
+      "bytes": 27758
+    },
+    "variance/emotion-recognition_predictions_gemma_seed2.jsonl": {
+      "sha256": "51796d9dc08a4a569948fad549c36f47cf166f317a6d222b02404ae4fd41d79e",
+      "rows": 30,
+      "bytes": 27778
+    },
+    "variance/emotion-recognition_predictions_gemma_seed3.jsonl": {
+      "sha256": "985b587854fd02e34a093f2d6f6fd9efbdca1970264f64236905e803ae9b723c",
+      "rows": 30,
+      "bytes": 27749
+    },
+    "variance/emotion-recognition_predictions_sealion_seed1.jsonl": {
+      "sha256": "95d0317c1b1f26a0da839bdec9655cd4460f9c3574db52027bf5ffb85d439a60",
+      "rows": 30,
+      "bytes": 28022
+    },
+    "variance/emotion-recognition_predictions_sealion_seed2.jsonl": {
+      "sha256": "691b759e423fe2b6168bd0aad18d19deb14aaaf5ae4df192dc133a78070ecea8",
+      "rows": 30,
+      "bytes": 28034
+    },
+    "variance/emotion-recognition_predictions_sealion_seed3.jsonl": {
+      "sha256": "79d8c233f646869e71515b97e22868e56e384e379d4c22852e91447377d58be8",
+      "rows": 30,
+      "bytes": 28015
+    }
+  }
+}

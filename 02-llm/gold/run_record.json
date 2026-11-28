@@ -1,0 +1,340 @@
+{
+  "gemma": {
+    "recognition,advice-p0": {
+      "profile": "full",
+      "backend": "vllm",
+      "model_ref": "google/gemma-3-4b-it@093f9f388b31de276ce2de164bdc2081324b9767",
+      "precision": "fp32",
+      "chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+      "decoding_main": {
+        "temperature": 0.0,
+        "top_p": 1.0
+      },
+      "decoding_variance": {
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "seeds": [
+          1,
+          2,
+          3
+        ],
+        "n_posts": 30
+      },
+      "max_new_tokens": {
+        "recognition": 64,
+        "advice": 320
+      },
+      "seed": 42,
+      "prompt_files": {
+        "emotion-recognition_v4": {
+          "version": "v4",
+          "sha256": "4686cc8a4d226bcdb24d4c515926c0d6529f401ae252efa535f2dc80e0352408"
+        },
+        "advice-p0_v5": {
+          "version": "v5",
+          "sha256": "1849bb2904763bb98358e921f909d51f556732898a35562391cf41c23c4fb6e8"
+        }
+      },
+      "schema_version": "v2",
+      "posts_file": "02-llm/gold/sample_posts.csv",
+      "n_posts": 236,
+      "versions": {
+        "vllm": "0.34.0",
+        "torch": "2.14.0+cu130",
+        "cuda": "13.0",
+        "gpu": "Tesla T4"
+      },
+      "engine": {
+        "max_model_len": 8192,
+        "gpu_memory_utilization": 0.95,
+        "enforce_eager": true,
+        "max_num_seqs": 32,
+        "tensor_parallel_size": 2,
+        "cuda_graphs": "decode",
+        "max_num_batched_tokens": 1024,
+        "fp32_attention_tile": 16
+      },
+      "git_commit": "c8d1e9c1b6e323e760da9f53f0da7cda71855860-dirty",
+      "updated_at": "2026-11-28T09:22:51+00:00"
+    },
+    "recognition,advice-p0+variance": {
+      "profile": "full",
+      "backend": "vllm",
+      "model_ref": "google/gemma-3-4b-it@093f9f388b31de276ce2de164bdc2081324b9767",
+      "precision": "fp32",
+      "chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+      "decoding_main": {
+        "temperature": 0.0,
+        "top_p": 1.0
+      },
+      "decoding_variance": {
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "seeds": [
+          1,
+          2,
+          3
+        ],
+        "n_posts": 30
+      },
+      "max_new_tokens": {
+        "recognition": 64,
+        "advice": 320
+      },
+      "seed": 42,
+      "prompt_files": {
+        "emotion-recognition_v4": {
+          "version": "v4",
+          "sha256": "4686cc8a4d226bcdb24d4c515926c0d6529f401ae252efa535f2dc80e0352408"
+        },
+        "advice-p0_v5": {
+          "version": "v5",
+          "sha256": "1849bb2904763bb98358e921f909d51f556732898a35562391cf41c23c4fb6e8"
+        }
+      },
+      "schema_version": "v2",
+      "posts_file": "02-llm/gold/sample_posts.csv",
+      "n_posts": 30,
+      "versions": {
+        "vllm": "0.34.0",
+        "torch": "2.14.0+cu130",
+        "cuda": "13.0",
+        "gpu": "Tesla T4"
+      },
+      "engine": {
+        "max_model_len": 8192,
+        "gpu_memory_utilization": 0.95,
+        "enforce_eager": true,
+        "max_num_seqs": 32,
+        "tensor_parallel_size": 2,
+        "cuda_graphs": "decode",
+        "max_num_batched_tokens": 1024,
+        "fp32_attention_tile": 16
+      },
+      "git_commit": "c8d1e9c1b6e323e760da9f53f0da7cda71855860-dirty",
+      "updated_at": "2026-11-28T09:26:56+00:00"
+    },
+    "advice-oracle-grid": {
+      "profile": "full",
+      "backend": "vllm",
+      "model_ref": "google/gemma-3-4b-it@093f9f388b31de276ce2de164bdc2081324b9767",
+      "precision": "fp32",
+      "chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+      "decoding_main": {
+        "temperature": 0.0,
+        "top_p": 1.0
+      },
+      "decoding_variance": {
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "seeds": [
+          1,
+          2,
+          3
+        ],
+        "n_posts": 30
+      },
+      "max_new_tokens": {
+        "recognition": 64,
+        "advice": 320
+      },
+      "seed": 42,
+      "prompt_files": {
+        "advice-oracle_v5": {
+          "version": "v5",
+          "sha256": "ae6c8d39e7bad2590a1a6921cf78048bb70e587b176f39c731885abb2bf717b4"
+        }
+      },
+      "schema_version": "v2",
+      "posts_file": "02-llm/gold/author-ratings/rating_candidates.csv",
+      "n_posts": 71,
+      "versions": {
+        "vllm": "0.34.0",
+        "torch": "2.14.0+cu130",
+        "cuda": "13.0",
+        "gpu": "Tesla T4"
+      },
+      "engine": {
+        "max_model_len": 8192,
+        "gpu_memory_utilization": 0.95,
+        "enforce_eager": true,
+        "max_num_seqs": 32,
+        "tensor_parallel_size": 2,
+        "cuda_graphs": "decode",
+        "max_num_batched_tokens": 1024,
+        "fp32_attention_tile": 16
+      },
+      "git_commit": "c8d1e9c1b6e323e760da9f53f0da7cda71855860-dirty",
+      "updated_at": "2026-11-28T12:51:26+00:00"
+    }
+  },
+  "sealion": {
+    "recognition,advice-p0": {
+      "profile": "full",
+      "backend": "vllm",
+      "model_ref": "aisingapore/Gemma-SEA-LION-v4-4B-VL@b4fcc3f0f2217761ad217dff1755f3ab3f3a8d82",
+      "precision": "fp32",
+      "chat_template_sha256": "702107383c53f0ad6ade151c9c66379300e7b2d59420cd62309b3bed18ab219d",
+      "decoding_main": {
+        "temperature": 0.0,
+        "top_p": 1.0
+      },
+      "decoding_variance": {
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "seeds": [
+          1,
+          2,
+          3
+        ],
+        "n_posts": 30
+      },
+      "max_new_tokens": {
+        "recognition": 64,
+        "advice": 320
+      },
+      "seed": 42,
+      "prompt_files": {
+        "emotion-recognition_v4": {
+          "version": "v4",
+          "sha256": "4686cc8a4d226bcdb24d4c515926c0d6529f401ae252efa535f2dc80e0352408"
+        },
+        "advice-p0_v5": {
+          "version": "v5",
+          "sha256": "1849bb2904763bb98358e921f909d51f556732898a35562391cf41c23c4fb6e8"
+        }
+      },
+      "schema_version": "v2",
+      "posts_file": "02-llm/gold/sample_posts.csv",
+      "n_posts": 236,
+      "versions": {
+        "vllm": "0.34.0",
+        "torch": "2.14.0+cu130",
+        "cuda": "13.0",
+        "gpu": "Tesla T4"
+      },
+      "engine": {
+        "max_model_len": 8192,
+        "gpu_memory_utilization": 0.95,
+        "enforce_eager": true,
+        "max_num_seqs": 32,
+        "tensor_parallel_size": 2,
+        "cuda_graphs": "decode",
+        "max_num_batched_tokens": 1024,
+        "fp32_attention_tile": 16
+      },
+      "git_commit": "c8d1e9c1b6e323e760da9f53f0da7cda71855860-dirty",
+      "updated_at": "2026-11-28T13:34:30+00:00"
+    },
+    "recognition,advice-p0+variance": {
+      "profile": "full",
+      "backend": "vllm",
+      "model_ref": "aisingapore/Gemma-SEA-LION-v4-4B-VL@b4fcc3f0f2217761ad217dff1755f3ab3f3a8d82",
+      "precision": "fp32",
+      "chat_template_sha256": "702107383c53f0ad6ade151c9c66379300e7b2d59420cd62309b3bed18ab219d",
+      "decoding_main": {
+        "temperature": 0.0,
+        "top_p": 1.0
+      },
+      "decoding_variance": {
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "seeds": [
+          1,
+          2,
+          3
+        ],
+        "n_posts": 30
+      },
+      "max_new_tokens": {
+        "recognition": 64,
+        "advice": 320
+      },
+      "seed": 42,
+      "prompt_files": {
+        "emotion-recognition_v4": {
+          "version": "v4",
+          "sha256": "4686cc8a4d226bcdb24d4c515926c0d6529f401ae252efa535f2dc80e0352408"
+        },
+        "advice-p0_v5": {
+          "version": "v5",
+          "sha256": "1849bb2904763bb98358e921f909d51f556732898a35562391cf41c23c4fb6e8"
+        }
+      },
+      "schema_version": "v2",
+      "posts_file": "02-llm/gold/sample_posts.csv",
+      "n_posts": 30,
+      "versions": {
+        "vllm": "0.34.0",
+        "torch": "2.14.0+cu130",
+        "cuda": "13.0",
+        "gpu": "Tesla T4"
+      },
+      "engine": {
+        "max_model_len": 8192,
+        "gpu_memory_utilization": 0.95,
+        "enforce_eager": true,
+        "max_num_seqs": 32,
+        "tensor_parallel_size": 2,
+        "cuda_graphs": "decode",
+        "max_num_batched_tokens": 1024,
+        "fp32_attention_tile": 16
+      },
+      "git_commit": "c8d1e9c1b6e323e760da9f53f0da7cda71855860-dirty",
+      "updated_at": "2026-11-28T13:38:42+00:00"
+    },
+    "advice-oracle-grid": {
+      "profile": "full",
+      "backend": "vllm",
+      "model_ref": "aisingapore/Gemma-SEA-LION-v4-4B-VL@b4fcc3f0f2217761ad217dff1755f3ab3f3a8d82",
+      "precision": "fp32",
+      "chat_template_sha256": "702107383c53f0ad6ade151c9c66379300e7b2d59420cd62309b3bed18ab219d",
+      "decoding_main": {
+        "temperature": 0.0,
+        "top_p": 1.0
+      },
+      "decoding_variance": {
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "seeds": [
+          1,
+          2,
+          3
+        ],
+        "n_posts": 30
+      },
+      "max_new_tokens": {
+        "recognition": 64,
+        "advice": 320
+      },
+      "seed": 42,
+      "prompt_files": {
+        "advice-oracle_v5": {
+          "version": "v5",
+          "sha256": "ae6c8d39e7bad2590a1a6921cf78048bb70e587b176f39c731885abb2bf717b4"
+        }
+      },
+      "schema_version": "v2",
+      "posts_file": "02-llm/gold/author-ratings/rating_candidates.csv",
+      "n_posts": 71,
+      "versions": {
+        "vllm": "0.34.0",
+        "torch": "2.14.0+cu130",
+        "cuda": "13.0",
+        "gpu": "Tesla T4"
+      },
+      "engine": {
+        "max_model_len": 8192,
+        "gpu_memory_utilization": 0.95,
+        "enforce_eager": true,
+        "max_num_seqs": 32,
+        "tensor_parallel_size": 2,
+        "cuda_graphs": "decode",
+        "max_num_batched_tokens": 1024,
+        "fp32_attention_tile": 16
+      },
+      "git_commit": "c8d1e9c1b6e323e760da9f53f0da7cda71855860-dirty",
+      "updated_at": "2026-11-28T17:10:04+00:00"
+    }
+  }
+}

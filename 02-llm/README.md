@@ -19,13 +19,16 @@ Record these for every run so it can be reproduced. `scripts/run.py` writes all 
 
 | Field           | Gemma | SEA-LION |
 | --------------- | ----- | -------- |
-| Model ID        |       |          |
-| Revision / hash |       |          |
-| Temperature     |       |          |
-| Top-p           |       |          |
-| Max new tokens  |       |          |
-| Seed            |       |          |
-| Backend         |       |          |
-| Precision       |       |          |
-| Prompt version  |       |          |
+| Model ID        | `google/gemma-3-4b-it` | `aisingapore/Gemma-SEA-LION-v4-4B-VL` |
+| Revision / hash | `093f9f388b31de276ce2de164bdc2081324b9767` | `b4fcc3f0f2217761ad217dff1755f3ab3f3a8d82` |
+| Chat template sha256 | `7de1c58e…88dd3c4` | `70210738…b219d` |
+| Temperature     | 0.0 (variance: 0.7) | same |
+| Top-p           | 1.0 (variance: 0.95) | same |
+| Max new tokens  | recognition 64, advice 320 | same |
+| Seed            | 42 (variance: 1, 2, 3 on 30 posts) | same |
+| Backend         | vLLM 0.34.0, torch 2.14.0+cu130, Kaggle 2× Tesla T4, TP 2 | same |
+| Precision       | fp32 | fp32 |
+| Prompt version  | recognition v4, P0 v5, P-Oracle v5 | same |
 | Prompt files    | `emotion-recognition_v4`, `advice-p0_v5`, `advice-oracle_v5` | same |
+
+Final run: Kaggle, 2026-11-28, code at commit `c8d1e9c` (the record says `-dirty` because the notebook replaced the clone's `02-llm/gold` folder with a symlink to `/kaggle/working/gold`; no code was changed). Engine: `max_model_len` 8192, `gpu_memory_utilization` 0.95, `max_num_seqs` 32, `max_num_batched_tokens` 1024, CUDA graphs for decode, 16-token fp32 attention tiles. Gemma ran in session 1 and SEA-LION in session 2 (resumed from session 1's output). Outputs: recognition and P0 on 236 posts, variance on 30 posts, P-Oracle grid of 6,816 replies per model (71 candidates × 96).
