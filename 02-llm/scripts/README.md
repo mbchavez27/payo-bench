@@ -143,6 +143,8 @@ Steps (the notebook's first cell has the details):
 4. **Resume:** FP32 on a T4 is slow, and the P-Oracle grid may need 2–3 sessions. Attach the previous version's output as an input, set `PREVIOUS`, and run again. Finished generations are skipped.
 5. Download `gold/` to the main machine **without opening it**.
 
+On a T4, vLLM's Triton attention kernel needs 80 KB of shared memory for Gemma 3 at FP32, but the T4 has 64 KB. A small vLLM plugin (`payo_llm/fp32_attention.py`, registered in `pyproject.toml`) makes vLLM use 16-token attention tiles for FP32 only (48 KB). The math is the same; only the blocking of the attention sum changes. BF16 and FP8 runs are untouched. `run_record.json` records it as `engine.fp32_attention_tile`.
+
 Use `--precision fp32 --tp 2` for **every** full-run command, in every session. The precision guard stops a file from mixing precisions. Before the real runs, check the trial's `latency_s` to estimate how many sessions you'll need. If vLLM fails to start because no attention backend supports the T4, set `VLLM_ATTENTION_BACKEND` to one that does, and log it in `02-llm/README.md`.
 
 ## Behavior shared by both profiles

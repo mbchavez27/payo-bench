@@ -126,6 +126,26 @@ def test_vllm_engine_args_fp32_is_unquantized_float32_and_split():
     assert "quantization" not in args
 
 
+def test_fp32_tiles_shrink_only_fp32():
+    from payo_llm.fp32_attention import small_fp32_tiles
+
+    def vllm_default(head_size, sliding_window, element_size, is_prefill):  # Gemma 3 path returns 32
+        return 32
+
+    tile = small_fp32_tiles(vllm_default)
+    assert tile(256, 1024, 4, True) == 16 and tile(256, 0, 4, False) == 16   # fp32: fits a T4's 64 KB
+    assert tile(256, 1024, 2, True) == 32 and tile(256, 1024, 1, False) == 32  # bf16 / fp8 unchanged
+
+
+def test_fp32_plugin_is_registered_for_vllm():
+    import tomllib
+    from pathlib import Path
+
+    pyproject = tomllib.loads((Path(__file__).resolve().parents[3] / "pyproject.toml").read_text(encoding="utf-8"))
+    plugins = pyproject["project"]["entry-points"]["vllm.general_plugins"]
+    assert plugins["payo_fp32_attention"] == "payo_llm.fp32_attention:register"
+
+
 def test_full_profile_sets_the_8gb_memory_options():
     import tomllib
     from pathlib import Path

@@ -25,6 +25,7 @@ from payo_llm import ROOT
 from payo_llm.backends import (Backend, Decoding, Generation, OllamaBackend, VLLMBackend, check_gpu, cuda_info,
                                cuda_vram_gb, select_precision)
 from payo_llm.data import GoldLabel, Post, load_gold, load_posts, read_post_ids
+from payo_llm.fp32_attention import FP32_ATTENTION_TILE
 from payo_llm.parsing import parse_recognition
 from payo_llm.prompts import PromptTemplate, format_post, load_prompt, render, sha256_text
 from payo_llm.records import append_jsonl, done_keys, existing_precisions, now_iso, sha256_file, update_run_record, write_manifest
@@ -331,7 +332,9 @@ def run_model(args: argparse.Namespace, cfg: dict[str, Any], model: str) -> None
             "versions": backend.versions(),
             **({"engine": {"max_model_len": profile["max_model_len"],
                            "gpu_memory_utilization": profile["gpu_memory_utilization"],
-                           **engine_options(profile)}} if profile["backend"] == "vllm" else {}),
+                           **engine_options(profile),
+                           **({"fp32_attention_tile": FP32_ATTENTION_TILE} if backend.precision == "fp32" else {})}}
+               if profile["backend"] == "vllm" else {}),
         }, run=",".join(args.tasks) + ("+variance" if args.variance else ""))
     finally:
         backend.close()

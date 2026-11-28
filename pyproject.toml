@@ -31,6 +31,11 @@ dev = [
     "pytest>=9.2.0",
 ]
 
+# vLLM loads this in every process: 16-token attention tiles for fp32, so the Kaggle T4 route fits
+# the GPU's shared memory (02-llm/scripts/payo_llm/fp32_attention.py). bf16 and FP8 are untouched.
+[project.entry-points."vllm.general_plugins"]
+payo_fp32_attention = "payo_llm.fp32_attention:register"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
