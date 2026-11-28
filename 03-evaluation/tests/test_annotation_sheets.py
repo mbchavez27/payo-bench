@@ -63,3 +63,18 @@ def test_rebuild_refuses_when_a_sheet_has_labels(sampled):
     fill_sheet(paths.sheet("annotation", people[0]), lambda row: {"primary_emotion": "worry"})
     with pytest.raises(SystemExit, match=people[0]):
         steps.annotation_sheets(force=True)
+
+
+def test_sheets_open_on_a_guide_that_covers_every_allowed_value(sampled):
+    paths, people = sampled
+    book = load_workbook(paths.sheet("annotation", people[0]))
+    assert book.sheetnames[0] == "how_to_annotate" and book.active.title == "how_to_annotate"
+    guide = book["how_to_annotate"]
+    rows = {row[0]: row for row in guide.iter_rows(values_only=True) if row and row[0]}
+    schema = load_schema()
+    for key in ("emotions", "cultural_concepts", "exclusion_reasons", "expression", "domain", "need_type"):
+        for item in schema.raw[key]:
+            assert item["id"] in rows, item["id"]
+    for emotion in schema.emotion_ids:  # every emotion has its codebook cue
+        assert rows[emotion][3], emotion
+    assert read_sheet(paths.sheet("annotation", people[0]))["post_id"].tolist()  # labels tab still read back

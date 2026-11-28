@@ -16,7 +16,8 @@ from payo_llm.pilot import load_outputs
 from payo_llm.schema import load_schema
 from payo_eval import load
 from payo_eval.annotation import collect, disagreements, finalize, read_decisions, adjudicate
-from payo_eval.instruments import (LABEL_FIELDS, adjudication_columns, annotation_columns, bestfit_columns,
+from payo_eval.instruments import (LABEL_FIELDS, adjudication_columns, annotation_columns, annotation_guide,
+                                   bestfit_columns,
                                    check_exclusion_reasons, post_text, prescreen_columns, rating_columns)
 from payo_eval.paths import Paths, get_paths, load_config, roster
 from payo_eval.rating import bestfit_key, build_items, collect_ratings, rater_frames
@@ -195,11 +196,13 @@ def sample(force: bool = False) -> None:
 def _write_annotation_sheets(paths: Paths, cfg: dict, schema, silver: pd.DataFrame, plan: pd.DataFrame,
                              force: bool) -> None:
     """One sheet per annotator: their posts from the assignment, in a fixed per-person shuffled order."""
+    guide = annotation_guide(schema)
     for person in roster(cfg, "annotators"):
         ids = _shuffled(plan.loc[plan["annotator"] == person, "post_id"].tolist(), _seed_for(person, cfg["seed"]))
         frame = _post_frame(silver, ids)
         prefill = pd.DataFrame({"exclude_flag": ["no"] * len(frame)})
-        write_sheet(paths.sheet("annotation", person), frame, annotation_columns(schema), ["post"], prefill, force)
+        write_sheet(paths.sheet("annotation", person), frame, annotation_columns(schema), ["post"], prefill, force,
+                    guide=guide)
 
 
 def started_sheets(paths: Paths, people: list[str]) -> list[str]:

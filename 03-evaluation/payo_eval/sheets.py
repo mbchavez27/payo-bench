@@ -16,6 +16,9 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 MAIN_SHEET = "labels"
+GUIDE_SHEET = "how_to_annotate"
+GUIDE_WIDTHS = (24, 18, 80, 60)
+HEADING_FILL = PatternFill("solid", fgColor="DDE7F3")
 TEXT_WIDTH = 70
 INPUT_FILL = PatternFill("solid", fgColor="FFF7D6")  # pale yellow marks the columns people fill in
 HEADER_FONT = Font(bold=True)
@@ -34,7 +37,8 @@ class Column:
 
 
 def write_sheet(path: Path, frame: pd.DataFrame, inputs: Sequence[Column], text_columns: Sequence[str] = (),
-                prefill: pd.DataFrame | None = None, overwrite: bool = False) -> Path:
+                prefill: pd.DataFrame | None = None, overwrite: bool = False,
+                guide: Sequence[Sequence[str]] | None = None) -> Path:
     """
     Write one person's sheet: read-only columns from `frame`, then the input columns.
 
@@ -45,6 +49,8 @@ def write_sheet(path: Path, frame: pd.DataFrame, inputs: Sequence[Column], text_
         text_columns: Long-text columns to wrap and widen.
         prefill: Optional values for input columns (same index as `frame`).
         overwrite: Replace an existing sheet. Off by default so no one's work is lost.
+        guide: Optional instructions, written to a first tab that opens by default. One list of cells per
+            row; a row whose first cell starts with "# " is a heading.
 
     Returns:
         The path written.
@@ -103,8 +109,27 @@ def write_sheet(path: Path, frame: pd.DataFrame, inputs: Sequence[Column], text_
             sheet.add_data_validation(rule)
             rule.add(f"{letter}2:{letter}{n_rows}")
     sheet.freeze_panes = "B2"
+    if guide:
+        _write_guide(book, guide)
     book.save(path)
     return path
+
+
+def _write_guide(book: Workbook, rows: Sequence[Sequence[str]]) -> None:
+    """A read-only instructions tab, first in the workbook and active when the file opens."""
+    tab = book.create_sheet(GUIDE_SHEET, 0)
+    for row in rows:
+        heading = bool(row) and str(row[0]).startswith("# ")
+        cells = [str(row[0])[2:], *row[1:]] if heading else list(row)
+        tab.append(cells)
+        for cell in tab[tab.max_row]:
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            if heading:
+                cell.font, cell.fill = HEADER_FONT, HEADING_FILL
+    for position, width in enumerate(GUIDE_WIDTHS, start=1):
+        tab.column_dimensions[get_column_letter(position)].width = width
+    tab.protection.sheet = True  # read-only, so nobody types labels here by mistake
+    book.active = 0
 
 
 def read_sheet(path: Path) -> pd.DataFrame:
