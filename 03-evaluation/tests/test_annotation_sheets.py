@@ -1,0 +1,65 @@
+"""Rebuilding the annotation sheets keeps the sample, the posts and their order, and uses the current schema."""
+
+import os
+
+import numpy as np
+import pytest
+from openpyxl import load_workbook
+
+from payo_llm.schema import load_schema
+from payo_eval import steps
+from payo_eval.paths import get_paths, load_config
+from payo_eval.sheets import read_sheet
+from payo_eval.synthetic import SEED, add_keyword_cues, fake_silver, fill_sheet, synthetic_config, truth_table
+
+
+@pytest.fixture
+def sampled(tmp_path):
+    before = dict(os.environ)
+    env = {"PAYO_GOLD_DIR": tmp_path / "gold", "PAYO_WORK_DIR": tmp_path / "work",
+           "PAYO_SILVER_PATH": tmp_path / "silver.parquet", "PAYO_RESULTS_DIR": tmp_path / "results",
+           "PAYO_FIGURES_DIR": tmp_path / "figures", "PAYO_EVAL_CONFIG": tmp_path / "config.toml",
+           "PAYO_PILOT_DIR": tmp_path / "pilot", "PAYO_PILOT_POSTS": tmp_path / "pilot" / "pilot_posts.csv"}
+    os.environ.update({k: str(v) for k, v in env.items()})
+    try:
+        rng = np.random.default_rng(SEED)
+        silver = fake_silver(700, rng)
+        synthetic_config(env["PAYO_EVAL_CONFIG"])
+        cfg = load_config()
+        silver = add_keyword_cues(silver, truth_table(silver["post_id"].tolist(), rng), cfg["prescreen"]["keywords"], rng)
+        silver.to_parquet(env["PAYO_SILVER_PATH"], index=False)
+        (tmp_path / "pilot").mkdir()
+        silver[["post_id"]].iloc[:20].to_csv(env["PAYO_PILOT_POSTS"], index=False)
+        steps.sample()
+        yield get_paths(), cfg["roster"]["annotators"]
+    finally:
+        os.environ.clear()
+        os.environ.update(before)
+
+
+def _emotion_dropdown(path):
+    lists = load_workbook(path)["lists"]
+    values = {cell.value for row in lists.iter_rows() for cell in row if cell.value}
+    return values
+
+
+def test_rebuild_keeps_posts_and_order_and_uses_schema(sampled):
+    paths, people = sampled
+    before = {p: read_sheet(paths.sheet("annotation", p))["post_id"].tolist() for p in people}
+    sample_bytes, assignment_bytes = paths.sample.read_bytes(), paths.assignment.read_bytes()
+
+    steps.annotation_sheets(force=True)
+
+    for person in people:
+        assert read_sheet(paths.sheet("annotation", person))["post_id"].tolist() == before[person]
+    assert paths.sample.read_bytes() == sample_bytes and paths.assignment.read_bytes() == assignment_bytes
+    values = _emotion_dropdown(paths.sheet("annotation", people[0]))
+    assert load_schema().emotion_ids <= values
+    assert "konsensya" in values and not {"utang_na_loob_guilt", "pakikisama_strain"} & values
+
+
+def test_rebuild_refuses_when_a_sheet_has_labels(sampled):
+    paths, people = sampled
+    fill_sheet(paths.sheet("annotation", people[0]), lambda row: {"primary_emotion": "worry"})
+    with pytest.raises(SystemExit, match=people[0]):
+        steps.annotation_sheets(force=True)

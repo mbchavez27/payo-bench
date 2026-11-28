@@ -3,6 +3,7 @@ The human-in-the-loop workflow, one command per gate. See RUNBOOK.md for the ful
 
     uv run python 03-evaluation/workflow.py status
     uv run python 03-evaluation/workflow.py sample              # B. keyword pre-screen, stratified sample, sheets
+    uv run python 03-evaluation/workflow.py annotation-sheets   # B1. rebuild the sheets (same posts), e.g. after a schema change
     uv run python 03-evaluation/workflow.py rating-candidates   # B2. rated-set candidates (for the P-Oracle grid)
         (GPU, pipeline.py: recognition + P0 + P-Oracle grid; outputs stay unopened until D)
     uv run python 03-evaluation/workflow.py adjudication-sheet  # C. collect blind annotations, disagreements
@@ -44,7 +45,7 @@ def run_notebooks(out_dir: Path | None = None) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command", choices=["status", "pilot-sheets", "pilot-merge", "pilot-adjudicate",
-                                            "prescreen-sheet", "sample", "rating-candidates", "adjudication-sheet", "finalize-labels",
+                                            "prescreen-sheet", "sample", "annotation-sheets", "rating-candidates", "adjudication-sheet", "finalize-labels",
                                             "rating-sheets", "collect-ratings", "analyze", "smoke"])
     parser.add_argument("--force", action="store_true", help="overwrite existing sheets/outputs of this step")
     parser.add_argument("--accept-kappa", action="store_true", help="finalize-labels: continue past the κ gate")
@@ -64,6 +65,8 @@ def main() -> None:
             steps.prescreen_sheet(args.force)
         case "sample":
             steps.sample(args.force)
+        case "annotation-sheets":
+            steps.annotation_sheets(args.force)
         case "rating-candidates":
             steps.rating_candidates_step(args.force)
         case "adjudication-sheet":

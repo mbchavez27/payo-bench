@@ -58,7 +58,7 @@ When it finishes, copy `02-llm/gold/` (JSONL, `MANIFEST.json`, `run_record.json`
 
 | # | Who | Do |
 | --- | --- | --- |
-| 3.1 | Each annotator | Label your sheet alone (codebook §1-§7), about 59 posts each. Don't read the replies, open the thread, or look at any model output. This can start before or during step 2 |
+| 3.1 | Each annotator | Label your sheet alone (codebook §1-§7), about 59 posts each. Don't read the replies, open the thread, or look at any model output. This can start before or during step 2. If the label schema changed after `wf sample`, first run `wf annotation-sheets --force` (same posts and order, current dropdowns; it refuses if a sheet has labels) |
 
 ## 4. Gold labels
 

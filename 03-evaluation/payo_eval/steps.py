@@ -184,16 +184,54 @@ def sample(force: bool = False) -> None:
                   not_on_doubles={adjudicator} if adjudicator else None)
     plan = plan.rename(columns={"person": "annotator"})
     _write_csv(plan[["post_id", "annotator", "slot"]], paths.assignment)
-    for person in people:
-        ids = _shuffled(plan.loc[plan["annotator"] == person, "post_id"].tolist(), _seed_for(person, cfg["seed"]))
-        frame = _post_frame(silver, ids)
-        prefill = pd.DataFrame({"exclude_flag": ["no"] * len(frame)})
-        write_sheet(paths.sheet("annotation", person), frame, annotation_columns(schema), ["post"], prefill, force)
+    _write_annotation_sheets(paths, cfg, schema, silver, plan, force)
     print(drawn.groupby(["arm", "domain_guess"]).size().rename("posts").to_string())
     print(f"\nWrote {paths.sample} ({len(drawn)} posts), {paths.assignment} "
           f"({int((plan['slot'] == 2).sum())} double-annotated), and one sheet per annotator in {paths.work / 'annotation'}.\n"
           "Next: `rating-candidates`, then all GPU work (pipeline.py, RUNBOOK §2; nobody opens the outputs until\n"
           "`finalize-labels`). Annotation (RUNBOOK §3) can start any time, blind.")
+
+
+def _write_annotation_sheets(paths: Paths, cfg: dict, schema, silver: pd.DataFrame, plan: pd.DataFrame,
+                             force: bool) -> None:
+    """One sheet per annotator: their posts from the assignment, in a fixed per-person shuffled order."""
+    for person in roster(cfg, "annotators"):
+        ids = _shuffled(plan.loc[plan["annotator"] == person, "post_id"].tolist(), _seed_for(person, cfg["seed"]))
+        frame = _post_frame(silver, ids)
+        prefill = pd.DataFrame({"exclude_flag": ["no"] * len(frame)})
+        write_sheet(paths.sheet("annotation", person), frame, annotation_columns(schema), ["post"], prefill, force)
+
+
+def started_sheets(paths: Paths, people: list[str]) -> list[str]:
+    """Annotators whose sheet has any label typed in (beyond the prefilled exclude_flag = no)."""
+    started = []
+    for person in people:
+        path = paths.sheet("annotation", person)
+        if not path.exists():
+            continue
+        sheet = read_sheet(path)
+        typed = [c for c in sheet.columns if c not in ("post_id", "post", "exclude_flag")]
+        if (sheet[typed] != "").any().any() or (sheet.get("exclude_flag", pd.Series(dtype=str)) == "yes").any():
+            started.append(person)
+    return started
+
+
+def annotation_sheets(force: bool = False) -> None:
+    """
+    Rebuild the annotation sheets from the existing sample and assignment (same posts, same order),
+    e.g. after the label schema changed. Never redraws the sample.
+    """
+    paths, cfg, schema, silver = _context()
+    if not paths.assignment.exists():
+        raise SystemExit(f"Missing {paths.assignment}: run `sample` first.")
+    started = started_sheets(paths, roster(cfg, "annotators"))
+    if started:
+        raise SystemExit("These sheets already have labels, so they are not rebuilt: " + ", ".join(started) +
+                         "\nMove them aside first if they really should be replaced.")
+    plan = pd.read_csv(paths.assignment, dtype=str)
+    _write_annotation_sheets(paths, cfg, schema, silver, plan, force)
+    print(f"Rebuilt {len(roster(cfg, 'annotators'))} annotation sheets in {paths.work / 'annotation'} "
+          f"(schema {schema.version}; posts and order unchanged).")
 
 
 # ---------------------------------------------------------------- B2. rated-set candidates
