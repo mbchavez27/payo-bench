@@ -78,3 +78,19 @@ def test_sheets_open_on_a_guide_that_covers_every_allowed_value(sampled):
     for emotion in schema.emotion_ids:  # every emotion has its codebook cue
         assert rows[emotion][3], emotion
     assert read_sheet(paths.sheet("annotation", people[0]))["post_id"].tolist()  # labels tab still read back
+
+
+def test_worked_examples_use_only_allowed_values_and_follow_the_skip_rule():
+    from payo_eval.instruments import WORKED_EXAMPLES, annotation_columns
+
+    columns = {c.name: c for c in annotation_columns(load_schema())}
+    for _, labels, why in WORKED_EXAMPLES:
+        assert why
+        for field, value in labels.items():
+            assert field in columns
+            if value and columns[field].choices:
+                assert value in columns[field].choices, (field, value)
+        if labels["exclude_flag"] == "yes":
+            assert set(labels) == {"exclude_flag", "exclude_reason"}
+        else:
+            assert {"primary_emotion", "cultural_concept", "expression", "domain", "need_type"} <= set(labels)

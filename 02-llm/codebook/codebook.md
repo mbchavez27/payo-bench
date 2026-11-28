@@ -157,6 +157,8 @@ Pick the **one** cultural concept that most shapes the situation or the poster's
 
 This refers to the label you chose. If the poster writes "naiinis ako" but you labeled `tampo`, it is `implicit` unless tampo or a synonym is also named.
 
+For `none_practical`, use `implicit`: no emotion is named.
+
 ---
 
 ## 7. Domain and need type
@@ -190,6 +192,7 @@ Rare labels are merged after adjudication and before any model output is viewed.
 | v1       | 2026-11-24 | Sources verified by the team ([`source-verification.md`](source-verification.md)); references added (§11). Definitions revised for `pikon` and `pakikisama_strain` (emotions) and `hiya` (concept), in `label-schema.json` too. The pilot model run used the v1-draft wording; pilot outputs are not part of the study. |
 | v1.1     | 2026-11-24 | Process only, no definition changed: keyword pre-screen in code (§0), shared pilot skipped (§8.1), models may run before annotation but stay unopened (§8.5). See analysis plan v1.3. |
 | v2       | 2026-11-26 | Schema v2 update: (1) `utang_na_loob_guilt` replaced by `konsensya` (shared emotion); the debt of gratitude is captured under cultural concepts (`utang_na_loob`). (2) `pakikisama_strain` removed as redundant with `hiya`, `sama_ng_loob`, and `burnout`, plus `pakikisama` in cultural concepts. (3) `concept_aliases` replaced by `legacy_id_map` for migrating v1/pilot labels. (4) `family_obligation` and `respect_for_elders` carry native terms (*pananagutan sa pamilya*, *paggalang*). (5) `sadness` definition narrowed to prevent overlap with `tampo` and `sama_ng_loob`. (6) Native terms added to all shared emotions. |
+| v2.1     | 2026-11-29 | Clarification before annotation, no definition changed: `expression` is `implicit` for `none_practical` (§6). Annotation sheets open on a `how_to_annotate` tab with the steps, every label's definition and cues, and four worked examples on invented posts. |
 
 ## 11. References
 

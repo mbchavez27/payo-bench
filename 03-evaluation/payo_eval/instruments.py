@@ -114,13 +114,43 @@ ANNOTATION_STEPS = (
      "it would change what the right advice is. It is separate from the emotion: a poster can feel konsensya in "
      "an utang_na_loob situation."),
     ("4. expression", "`explicit` if the poster names the emotion YOU chose, or a close synonym, in any language; "
-     "otherwise `implicit`."),
+     "otherwise `implicit`. For none_practical, use `implicit` (no emotion is named)."),
     ("5. domain", "Where the problem sits. If two apply (money owed by a sibling), choose the relationship "
      "(`family`). Use `money` only when no close relationship is central."),
     ("6. need_type", "What the poster asks for. Read the Problem/Goal first."),
     ("7. notes", "Optional: doubts, a second-choice label, anything the adjudicator should know."),
     ("When done", "Save the file with the same name and send it back. Full rules and examples: "
      "02-llm/codebook/codebook.md §1-§7."),
+)
+
+
+# Invented posts (not from the study sample), so annotators see a filled row before they start.
+WORKED_EXAMPLES = (
+    ("Panganay ako at ako na lahat sumasalo sa bills namin since nawalan ng work si Papa. Gusto ko na sanang "
+     "mag-ipon para sa sarili ko, pero every time na iniisip kong bawasan yung padala, kinakain ako ng konsensya. "
+     "Masama ba akong anak? Paano ko sasabihin sa kanila nang hindi sila nasasaktan?",
+     {"exclude_flag": "no", "primary_emotion": "konsensya", "cultural_concept": "family_obligation",
+      "expression": "explicit", "domain": "family", "need_type": "both", "notes": "runner-up: burnout"},
+     "The poster's own felt state is guilt ('kinakain ako ng konsensya' names it, so explicit). The duty to "
+     "support the family as panganay shapes the dilemma, so the concept is family_obligation, not none. They ask "
+     "'Masama ba akong anak?' (emotional) and 'Paano ko sasabihin' (practical), so both."),
+    ("Birthday ko kahapon at buong araw hindi man lang ako binati ng boyfriend ko. Nag-post pa siya ng games niya "
+     "sa story. Hindi ko siya nirereplyan ngayon, hinihintay ko lang kung mapapansin niya. OA ba ako?",
+     {"exclude_flag": "no", "primary_emotion": "tampo", "cultural_concept": "none", "expression": "implicit",
+      "domain": "romantic", "need_type": "emotional", "notes": "runner-up: sadness"},
+     "Hurt at a partner could be sadness, but tampo's defining feature is in the text: withdrawal ('hindi ko siya "
+     "nirereplyan') plus waiting to be noticed. So the culture-bound label wins the tie-break. The poster never "
+     "says 'nagtatampo', so implicit. No cultural norm changes the right advice, so concept none."),
+    ("Paano po mag-file ng small claims? May utang sa akin yung dating officemate ko na 15k, 6 months na. "
+     "Ano pong requirements at magkano ang fee? Salamat po.",
+     {"exclude_flag": "no", "primary_emotion": "none_practical", "cultural_concept": "none",
+      "expression": "implicit", "domain": "money", "need_type": "practical", "notes": ""},
+     "An unpaid loan could make someone angry, but this poster expresses no emotion: they only ask for a "
+     "procedure. Label the felt state, not the situation, so none_practical. Expression is implicit because no "
+     "emotion is named. A former officemate is not a close relationship, so the domain is money."),
+    ("(A post where the poster says they have been thinking of ending their life.)",
+     {"exclude_flag": "yes", "exclude_reason": "self_harm_crisis"},
+     "Exclusion comes first. Once exclude_flag is yes, pick the reason and leave every other column empty."),
 )
 
 
@@ -151,6 +181,16 @@ def codebook_emotion_cues(codebook: str) -> dict[str, str]:
     return cues
 
 
+def codebook_emotion_examples(codebook: str) -> dict[str, str]:
+    """The paraphrased example per emotion id, from the codebook §4 sections that have one."""
+    examples = {}
+    for match in re.finditer(r"^#### `([a-z_]+)`.*?(?=^#{2,4} |\Z)", _section(codebook, 4), flags=re.M | re.S):
+        found = re.search(r"\*\*Example \(paraphrased\)\.\*\*\s*(.+)", match.group(0))
+        if found:
+            examples[match.group(1)] = _plain(found.group(1))
+    return examples
+
+
 def codebook_concept_cues(codebook: str) -> dict[str, str]:
     """Typical cues per cultural concept id, from the codebook §5 table."""
     rows = re.finditer(r"^\| `([a-z_]+)` \|([^|]*)\|([^|]*)\|([^|]*)\|", _section(codebook, 5), flags=re.M)
@@ -172,17 +212,25 @@ def annotation_guide(schema: Schema, codebook_path: Path | None = None) -> list[
     path = codebook_path or ROOT / schema.raw.get("codebook", "02-llm/codebook/codebook.md")
     text = path.read_text(encoding="utf-8") if path.exists() else ""
     cues, concept_cues = codebook_emotion_cues(text), codebook_concept_cues(text)
+    emotion_examples = codebook_emotion_examples(text)
     cues["none_practical"] = "See the none_practical step above."
     rows: list[list[str]] = [[f"# How to annotate (label schema {schema.version})"], []]
     rows += [["# Steps"]] + [[step, "", _plain(text)] for step, text in ANNOTATION_STEPS] + [[]]
 
+    rows.append(["# Worked examples", "", "Post (invented, not from your sheet)", "Why"])
+    for number, (post, labels, why) in enumerate(WORKED_EXAMPLES, start=1):
+        rows.append([f"Example {number}", "", post, why])
+        rows += [["", field, value] for field, value in labels.items() if value]
+        rows.append([])
+
     rows.append(["# exclude_reason", "", "Exclude when"])
     rows += [[e["id"], "", e["definition"]] for e in schema.raw["exclusion_reasons"]] + [[]]
 
-    rows.append(["# primary_emotion", "type", "Definition", "Use when / not to be confused with"])
+    rows.append(["# primary_emotion", "type", "Definition", "Use when / not to be confused with",
+                 "Example (paraphrased)"])
     for e in schema.raw["emotions"]:
         kind = {"culture_bound": "culture-bound", "shared": "shared"}.get(e.get("type", ""), e.get("type", ""))
-        rows.append([e["id"], kind, e["definition"], cues.get(e["id"], "")])
+        rows.append([e["id"], kind, e["definition"], cues.get(e["id"], ""), emotion_examples.get(e["id"], "")])
     rows.append([])
 
     rows.append(["# cultural_concept", "name", "Definition", "Typical cues"])

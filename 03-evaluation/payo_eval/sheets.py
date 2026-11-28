@@ -17,7 +17,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 MAIN_SHEET = "labels"
 GUIDE_SHEET = "how_to_annotate"
-GUIDE_WIDTHS = (24, 18, 80, 60)
+GUIDE_WIDTHS = (20, 18, 70, 60, 60)
 HEADING_FILL = PatternFill("solid", fgColor="DDE7F3")
 TEXT_WIDTH = 70
 INPUT_FILL = PatternFill("solid", fgColor="FFF7D6")  # pale yellow marks the columns people fill in
