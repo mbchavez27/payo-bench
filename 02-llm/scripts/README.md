@@ -121,14 +121,14 @@ If something fails:
 | `already has outputs at precision ...` | One file got two precisions. Use the same `--precision` as before, or move the file away to start over |
 | `compute capability 7.5 < 8.0` on a T4 | Use Kaggle's **GPU T4 x2** with `--precision fp32 --tp 2` (section above) |
 | `fp32 needs about 28 GB across GPUs` | One T4 isn't enough: pick **GPU T4 x2** and pass `--tp 2` |
-| `To serve at least one request with the model's max seq len (8192) ... KV cache` on 2× T4 | Pass `--gpu-mem 0.95 --max-batched-tokens 2048` (the Kaggle flags) |
+| `To serve at least one request with the model's max seq len (8192) ... KV cache` on 2× T4 | Pass the Kaggle flags (`--gpu-mem 0.95 --max-batched-tokens 1024`) |
 | `gated repo` / 401 | Accept the Gemma license on Hugging Face with the account whose token is in `.env` |
 
 Don't open or print the JSONL outputs until `finalize-labels` (RUNBOOK, blindness rule). The run prints only counts.
 
 ## Free GPU: Kaggle 2× T4 (FP32)
 
-With no RTX 30-series card, use Kaggle's free **GPU T4 x2** (30 GPU-hours a week, 12-hour sessions) through `kaggle_full_run.ipynb`. It runs `pipeline.py --precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 2048`: the weights are loaded unquantized in float32 and each model is split across both GPUs (tensor parallel 2). `tensor_parallel_size` is saved under `engine` in `run_record.json`.
+With no RTX 30-series card, use Kaggle's free **GPU T4 x2** (30 GPU-hours a week, 12-hour sessions) through `kaggle_full_run.ipynb`. It runs `pipeline.py --precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 1024 --max-num-seqs 32 --cuda-graphs decode`: the weights are loaded unquantized in float32 and each model is split across both GPUs (tensor parallel 2). `tensor_parallel_size` is saved under `engine` in `run_record.json`.
 
 Why not something else:
 
@@ -146,9 +146,11 @@ Steps (the notebook's first cell has the details):
 
 On a T4, vLLM's Triton attention kernel needs 80 KB of shared memory for Gemma 3 at FP32, but the T4 has 64 KB. A small vLLM plugin (`payo_llm/fp32_attention.py`, registered in `pyproject.toml`) makes vLLM use 16-token attention tiles for FP32 only (48 KB). The math is the same; only the blocking of the attention sum changes. BF16 and FP8 runs are untouched. `run_record.json` records it as `engine.fp32_attention_tile`.
 
-At FP32, vLLM's default 8,192-token prefill chunk reserves ~3.7 GB of activations per GPU and leaves too little for an 8k KV cache, so the Kaggle flags also set `--max-batched-tokens 2048` (longer prompts are read in several chunks) and `--gpu-mem 0.95`. Both are recorded under `engine`.
+At FP32, vLLM's default 8,192-token prefill chunk reserves ~3.7 GB of activations per GPU and leaves too little for an 8k KV cache, so the Kaggle flags also set a smaller prefill chunk (`--max-batched-tokens 1024`; longer prompts are read in several chunks) and `--gpu-mem 0.95`. For speed, `--max-num-seqs 32` lets more requests run at once, and `--cuda-graphs decode` replays each decode step as a captured CUDA graph (torch.compile stays off, so the same kernels run with less launch overhead). With the earlier eager settings, one P-Oracle grid post took ~8.5 min per model. All of these are recorded under `engine` and change how fast the work runs, not what is computed.
 
-Use `--precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 2048` for **every** full-run command, in every session. The precision guard stops a file from mixing precisions. Before the real runs, check the trial's `latency_s` to estimate how many sessions you'll need. If vLLM hits another T4-specific failure, log the fix in `02-llm/README.md`.
+**Splitting across two accounts:** the P-Oracle grid is ~95% of the work. To halve the wall time, run `--model gemma` on one Kaggle account and `--model sealion` on another at the same time (the notebook's `MODEL` setting), with the same `COMMIT` and flags. Then copy one `gold/` into `02-llm/gold/` and run `uv run python 02-llm/scripts/merge_gold.py <the other gold folder>`. It refuses to merge if the precision or engine settings differ, or if a model appears on both sides, and it rewrites `MANIFEST.json`.
+
+Use `--precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 1024 --max-num-seqs 32 --cuda-graphs decode` for **every** full-run command, in every session and on both machines. The precision guard stops a file from mixing precisions. Before the real runs, check the trial's `latency_s` to estimate how many sessions you'll need. If vLLM hits another T4-specific failure, log the fix in `02-llm/README.md`.
 
 ## Behavior shared by both profiles
 

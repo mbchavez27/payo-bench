@@ -13,7 +13,7 @@ Runs Gemma and SEA-LION on the silver data for the two study tasks (emotion reco
 
 ## Run record (fill in per run)
 
-**Study precision (decided 2026-11-28, before any full-run output):** if the full run uses Kaggle's free 2× T4, it is **FP32 (vLLM, tensor parallel 2)** for every run (`--precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 2048`, 16-token FP32 attention tiles; `scripts/README.md`, "Free GPU"). FP16 was ruled out because Gemma 3 gives non-finite logits in it. On an RTX 30-series card or newer with 8–11 GB, it stays FP8 weight-only. Whichever hardware runs first fixes the precision for the whole study.
+**Study precision (decided 2026-11-28, before any full-run output):** if the full run uses Kaggle's free 2× T4, it is **FP32 (vLLM, tensor parallel 2)** for every run (`--precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 1024 --max-num-seqs 32 --cuda-graphs decode`, 16-token FP32 attention tiles; `scripts/README.md`, "Free GPU"). FP16 was ruled out because Gemma 3 gives non-finite logits in it. On an RTX 30-series card or newer with 8–11 GB, it stays FP8 weight-only. Whichever hardware runs first fixes the precision for the whole study.
 
 Record these for every run so it can be reproduced. `scripts/run.py` writes all of them to `run_record.json` in the run's output folder; copy them here for the final run:
 

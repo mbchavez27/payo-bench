@@ -72,6 +72,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tp", type=int, help="full profile: split each model across N GPUs (tensor parallel)")
     parser.add_argument("--max-batched-tokens", type=int,
                         help="full profile: vLLM tokens per step (prefill chunk); smaller frees activation memory")
+    parser.add_argument("--max-num-seqs", type=int, help="full profile: requests in flight (profile default 16)")
+    parser.add_argument("--cuda-graphs", choices=["none", "decode"],
+                        help="full profile: 'decode' replays decode steps as CUDA graphs (no torch.compile)")
     parser.add_argument("--gpu-mem", type=float, help="full profile: override gpu_memory_utilization (0-1)")
     parser.add_argument("--out-dir", type=Path, help="write outputs here instead of the profile's folder (trial runs)")
     parser.add_argument("--variance", action="store_true", help="sampled runs on a subset, for variance")
@@ -102,6 +105,10 @@ def child_argv(args: argparse.Namespace, model: str) -> list[str]:
         argv += ["--tp", str(args.tp)]
     if args.max_batched_tokens:
         argv += ["--max-batched-tokens", str(args.max_batched_tokens)]
+    if args.max_num_seqs:
+        argv += ["--max-num-seqs", str(args.max_num_seqs)]
+    if args.cuda_graphs:
+        argv += ["--cuda-graphs", args.cuda_graphs]
     if args.out_dir:
         argv += ["--out-dir", str(args.out_dir)]
     if args.variance:
@@ -134,6 +141,7 @@ def engine_options(profile: dict[str, Any]) -> dict[str, Any]:
     return {"enforce_eager": bool(profile.get("enforce_eager", False)),
             "max_num_seqs": int(profile.get("max_num_seqs", 256)),
             "tensor_parallel_size": int(profile.get("tensor_parallel_size", 1)),
+            "cuda_graphs": str(profile.get("cuda_graphs", "none")),
             **({"max_num_batched_tokens": int(profile["max_num_batched_tokens"])}
                if profile.get("max_num_batched_tokens") else {})}
 
@@ -281,6 +289,10 @@ def run_model(args: argparse.Namespace, cfg: dict[str, Any], model: str) -> None
         profile["tensor_parallel_size"] = args.tp
     if args.max_batched_tokens:
         profile["max_num_batched_tokens"] = args.max_batched_tokens
+    if args.max_num_seqs:
+        profile["max_num_seqs"] = args.max_num_seqs
+    if args.cuda_graphs:
+        profile["cuda_graphs"] = args.cuda_graphs
     if args.check:
         preflight(cfg, profile, model, args.precision)
         return

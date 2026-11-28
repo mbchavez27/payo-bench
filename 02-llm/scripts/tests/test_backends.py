@@ -127,6 +127,16 @@ def test_vllm_engine_args_fp32_is_unquantized_float32_and_split():
     assert vllm_engine_args("m", "r", "fp32", 8192, 0.95, 42, max_num_batched_tokens=2048)["max_num_batched_tokens"] == 2048
 
 
+def test_cuda_graphs_decode_turns_off_eager_but_not_compile():
+    args = vllm_engine_args("m", "r", "fp32", 8192, 0.95, 42, enforce_eager=True, cuda_graphs="decode")
+    assert args["enforce_eager"] is False
+    assert args["compilation_config"] == {"mode": 0, "cudagraph_mode": "FULL_DECODE_ONLY"}
+    eager = vllm_engine_args("m", "r", "fp32", 8192, 0.95, 42, enforce_eager=True)
+    assert eager["enforce_eager"] is True and "compilation_config" not in eager
+    with pytest.raises(ValueError):
+        vllm_engine_args("m", "r", "fp32", 8192, 0.95, 42, cuda_graphs="piecewise")
+
+
 def test_fp32_tiles_shrink_only_fp32():
     from payo_llm.fp32_attention import small_fp32_tiles
 

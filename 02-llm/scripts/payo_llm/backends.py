@@ -17,6 +17,7 @@ import requests
 BF16_MIN_VRAM_GB = 11.0  # 4B weights are 8.6 GB in bf16, plus KV cache and activations
 FP32_MIN_TOTAL_VRAM_GB = 28.0  # 4B weights are 17.2 GB in fp32, plus an fp32 KV cache for 8k (2x T4 = 30 GB)
 PRECISIONS = ("bf16", "fp8", "bnb4", "fp32")
+CUDA_GRAPHS = ("none", "decode")
 
 
 @dataclass(frozen=True)
@@ -166,7 +167,7 @@ class OllamaBackend:
 def vllm_engine_args(hf_id: str, revision: str, precision: str, max_model_len: int,
                      gpu_memory_utilization: float, seed: int, enforce_eager: bool = False,
                      max_num_seqs: int = 256, tensor_parallel_size: int = 1,
-                     max_num_batched_tokens: int | None = None) -> dict[str, Any]:
+                     max_num_batched_tokens: int | None = None, cuda_graphs: str = "none") -> dict[str, Any]:
     """
     Keyword arguments for vllm.LLM.
 
@@ -175,6 +176,10 @@ def vllm_engine_args(hf_id: str, revision: str, precision: str, max_model_len: i
     across that many GPUs (2 on Kaggle's 2x T4). max_num_batched_tokens caps the tokens per engine step (the
     chunked-prefill chunk); a smaller cap shrinks the activation memory vLLM reserves, which fp32 on a T4 needs
     to leave room for an 8k KV cache. None keeps vLLM's default.
+
+    cuda_graphs="decode" replays each decode step as one captured CUDA graph (vLLM's FULL_DECODE_ONLY) with
+    torch.compile still off, so the same kernels run with far less launch overhead. It overrides
+    enforce_eager. "none" keeps eager mode.
 
     enforce_eager and max_num_seqs change only vLLM's working memory (no CUDA graphs or torch.compile, fewer
     sequences in flight), not the weights, precision, context length or decoding. They let FP8 Gemma-3-4B
@@ -195,6 +200,11 @@ def vllm_engine_args(hf_id: str, revision: str, precision: str, max_model_len: i
     }
     if max_num_batched_tokens is not None:
         kwargs["max_num_batched_tokens"] = max_num_batched_tokens
+    if cuda_graphs not in CUDA_GRAPHS:
+        raise ValueError(f"cuda_graphs must be one of {CUDA_GRAPHS}, got {cuda_graphs!r}")
+    if cuda_graphs == "decode":
+        kwargs["enforce_eager"] = False
+        kwargs["compilation_config"] = {"mode": 0, "cudagraph_mode": "FULL_DECODE_ONLY"}  # 0 = no torch.compile
     if precision == "fp8":
         kwargs["quantization"] = "fp8"
     elif precision == "bnb4":
@@ -210,14 +220,15 @@ class VLLMBackend:
     def __init__(self, hf_id: str, revision: str, precision: str, max_model_len: int,
                  gpu_memory_utilization: float, seed: int, enforce_eager: bool = False,
                  max_num_seqs: int = 256, tensor_parallel_size: int = 1,
-                 max_num_batched_tokens: int | None = None) -> None:
+                 max_num_batched_tokens: int | None = None, cuda_graphs: str = "none") -> None:
         from vllm import LLM  # noqa: PLC0415  (Linux-only dependency)
 
         self.precision = precision
         self.max_model_len = max_model_len
         self.model_ref = f"{hf_id}@{revision}"
         kwargs = vllm_engine_args(hf_id, revision, precision, max_model_len, gpu_memory_utilization, seed,
-                                  enforce_eager, max_num_seqs, tensor_parallel_size, max_num_batched_tokens)
+                                  enforce_eager, max_num_seqs, tensor_parallel_size, max_num_batched_tokens,
+                                  cuda_graphs)
         self.llm = LLM(**kwargs)
         self.tokenizer = self.llm.get_tokenizer()
         self.chat_template = getattr(self.tokenizer, "chat_template", None)

@@ -4,7 +4,8 @@ and says what a person has to do next.
 
     uv run python pipeline.py                 # Mac or GPU PC: run what's possible, print the next step
     uv run python pipeline.py --gpu-mem 0.8   # GPU PC: pass vLLM options through to every model run
-    uv run python pipeline.py --precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 2048   # Kaggle 2x T4 (free)
+    uv run python pipeline.py --precision fp32 --tp 2 --gpu-mem 0.95 --max-batched-tokens 1024 \
+        --max-num-seqs 32 --cuda-graphs decode [--model gemma]   # Kaggle 2x T4 (free); see 02-llm/scripts/README.md
     uv run python pipeline.py --no-trial      # skip the trial (3 posts + 1 P-Oracle grid post) before the first model run
 
 Stages, in order (each one is skipped when its output already exists):
@@ -100,9 +101,10 @@ def outputs(pattern: str) -> int:
     return len(list(GOLD.glob(pattern)))
 
 
-def stage_models(extra: list[str], trial: bool) -> None:
+def stage_models(extra: list[str], trial: bool, model: str = "both") -> None:
     """All GPU work, in one session: check, trial (3 posts + 1 grid post), recognition + P0, variance, P-Oracle grid. All resume."""
-    base = ["uv", "run", "python", "02-llm/scripts/run.py", "--profile", "full", "--model", "both", *extra]
+    base = ["uv", "run", "python", "02-llm/scripts/run.py", "--profile", "full", "--model", model, *extra]
+    n_models = 2 if model == "both" else 1
     if not has_cuda():
         say("3. GPU: no NVIDIA GPU here")
         print("Run this same command on the GPU PC (Linux or WSL2, RTX 30-series or newer, 8 GB+):\n"
@@ -112,7 +114,8 @@ def stage_models(extra: list[str], trial: bool) -> None:
         return
     say("3. GPU: GPU and model access check")
     run([*base, "--check"])
-    run1 = outputs("emotion-recognition/predictions_*.jsonl") < 2 or outputs("advice-generation/replies_*_p0.jsonl") < 2
+    run1 = (outputs("emotion-recognition/predictions_*.jsonl") < n_models
+            or outputs("advice-generation/replies_*_p0.jsonl") < n_models)
     if run1 and trial and not TRIAL_DIR.exists():
         say("3. trial: 3 posts + 1 grid post into /tmp/payo-trial (throwaway), to confirm both models load and "
             "fit and every prompt (recognition, P0, P-Oracle) runs")
@@ -133,17 +136,24 @@ def main() -> None:
     parser.add_argument("--gpu-mem", help="passed to run.py (use the same value for every run)")
     parser.add_argument("--precision", choices=["auto", "bf16", "fp8", "bnb4", "fp32"], help="passed to run.py")
     parser.add_argument("--tp", help="passed to run.py: GPUs per model (Kaggle 2x T4: --precision fp32 --tp 2)")
-    parser.add_argument("--max-batched-tokens", help="passed to run.py: vLLM prefill chunk (Kaggle 2x T4: 2048)")
+    parser.add_argument("--max-batched-tokens", help="passed to run.py: vLLM prefill chunk (Kaggle 2x T4: 1024)")
+    parser.add_argument("--max-num-seqs", help="passed to run.py: requests in flight (Kaggle 2x T4: 32)")
+    parser.add_argument("--cuda-graphs", choices=["none", "decode"], help="passed to run.py (Kaggle 2x T4: decode)")
+    parser.add_argument("--model", default="both", choices=["both", "gemma", "sealion"],
+                        help="run one model only, e.g. to split the GPU work across two machines (merge with "
+                             "02-llm/scripts/merge_gold.py)")
     parser.add_argument("--no-trial", action="store_true", help="skip the trial run (3 posts + 1 grid post)")
     args = parser.parse_args()
     extra = [*(["--gpu-mem", args.gpu_mem] if args.gpu_mem else []),
              *(["--precision", args.precision] if args.precision else []),
              *(["--tp", args.tp] if args.tp else []),
-             *(["--max-batched-tokens", args.max_batched_tokens] if args.max_batched_tokens else [])]
+             *(["--max-batched-tokens", args.max_batched_tokens] if args.max_batched_tokens else []),
+             *(["--max-num-seqs", args.max_num_seqs] if args.max_num_seqs else []),
+             *(["--cuda-graphs", args.cuda_graphs] if args.cuda_graphs else [])]
     stage_silver()
     stage_sample()
     stage_candidates()
-    stage_models(extra, trial=not args.no_trial)
+    stage_models(extra, trial=not args.no_trial, model=args.model)
     print("\nWhere the whole study is: uv run python 03-evaluation/workflow.py status")
 
 
